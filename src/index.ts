@@ -1,3 +1,5 @@
+import { startGame } from './game/game';
+
 declare const module;
 
 // avoid hot reload with Parcel
@@ -9,5 +11,5 @@ if (module.hot) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  //
+  startGame();
 });
