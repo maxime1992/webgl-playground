@@ -3,8 +3,13 @@
   "scripts": {
     "parcel": "parcel index.html"
   },
-  "dependencies": {},
+  "dependencies": {
+    "gl-matrix": "3.3.0",
+    "ts-shader-loader": "1.0.6"
+  },
   "devDependencies": {
+    "@types/gl-matrix": "3.2.0",
+    "glslify-bundle": "^5.1.1",
     "parcel": "1.12.4",
     "typescript": "4.0.5"
   }
