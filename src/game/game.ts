@@ -117,7 +117,26 @@ export const startGame = () => {
     throw new Error(`Couldn't create the buffer.`);
   }
 
-  const positions = new Float32Array([-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]);
+  // [-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]
+  // const positions = new Float32Array(
+  //   Array.from({ length: 9 * 3 })
+  //     .fill(null)
+  //     .map(() => Math.random() * 2.0 - 1.0)
+  // );
+  const positions = new Float32Array([
+    -0.5,
+    -0.5,
+    0,
+    0.5,
+    -0.5,
+    0,
+    0,
+    0.5,
+    0,
+    1,
+    0.5,
+    0,
+  ]);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
   gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
@@ -181,7 +200,13 @@ function renderLoop(
     0
   );
 
-  gl.drawArrays(gl.TRIANGLES, 0, positions.length / VECTOR_SIZE);
+  // gl.POINTS
+  // gl.LINES
+  // gl.LINE_STRIP
+  // gl.TRIANGLES
+  // gl.TRIANGLE_STRIP
+  // gl.TRIANGLE_FAN
+  gl.drawArrays(gl.TRIANGLE_FAN, 0, positions.length / VECTOR_SIZE);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   // stop manipulating our program
