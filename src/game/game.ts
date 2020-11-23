@@ -24,6 +24,7 @@ export const startGame = () => {
     throw new Error(`OpenGL not available!`);
   }
 
+  // set default value
   gl.clearColor(0, 0, 0, 1);
 
   /*
@@ -98,7 +99,7 @@ export const startGame = () => {
   // -1 if couldn't find attribute
   const positionAttributeLocation = gl.getAttribLocation(
     glProgramId,
-    'position'
+    `position`
   );
 
   if (positionAttributeLocation < 0) {
@@ -109,7 +110,7 @@ export const startGame = () => {
    * Create vertex buffer
    */
 
-  //  create buffer on the GPU
+  // create buffer on the GPU
   const vertexBufferId = gl.createBuffer();
 
   if (!vertexBufferId) {
