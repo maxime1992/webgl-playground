@@ -127,6 +127,24 @@ export const startGame = () => {
    * "Render loop"
    */
 
+  renderLoop(
+    canvas,
+    gl,
+    glProgramId,
+    vertexBufferId,
+    positionAttributeLocation,
+    positions
+  );
+};
+
+function renderLoop(
+  canvas: HTMLCanvasElement,
+  gl: WebGLRenderingContext,
+  glProgramId: WebGLProgram,
+  vertexBufferId: WebGLBuffer,
+  positionAttributeLocation: number,
+  positions: Float32Array
+) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
@@ -135,6 +153,18 @@ export const startGame = () => {
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
   gl.useProgram(glProgramId);
+
+  // set uniforms
+  gl.uniform3f(
+    gl.getUniformLocation(
+      glProgramId,
+      // name of the variable on the shader side
+      `translation`
+    ),
+    0,
+    0,
+    0
+  );
 
   // bind buffers here
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
@@ -156,4 +186,15 @@ export const startGame = () => {
 
   // stop manipulating our program
   gl.useProgram(null);
-};
+
+  window.requestAnimationFrame(() =>
+    renderLoop(
+      canvas,
+      gl,
+      glProgramId,
+      vertexBufferId,
+      positionAttributeLocation,
+      positions
+    )
+  );
+}
