@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "gl-matrix": "3.3.0",
+    "rxjs": "6.6.3",
     "ts-shader-loader": "1.0.6"
   },
   "devDependencies": {
