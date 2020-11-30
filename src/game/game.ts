@@ -1,8 +1,16 @@
 // vertex: run 1 time per vertex (points in the shape)
 // fragment: run 1 time per pixel
 
+import { vec2 } from 'gl-matrix';
+import { fromEvent, Observable } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
+
+interface Vec2 {
+  x: number;
+  y: number;
+}
 
 export const startGame = () => {
   /*
@@ -146,29 +154,74 @@ export const startGame = () => {
    * "Render loop"
    */
 
-  renderLoop(
-    canvas,
-    gl,
-    glProgramId,
-    vertexBufferId,
-    positionAttributeLocation,
-    positions
+  const mousePositionViewportSpace$: Observable<Vec2> = fromEvent<MouseEvent>(
+    document,
+    'mousemove'
+  ).pipe(
+    map((mousePosition: MouseEvent) => ({
+      x: mousePosition.clientX,
+      y: mousePosition.clientY,
+    }))
   );
+
+  const mousePositionWebGlViewportSpace$: Observable<Vec2> = mousePositionViewportSpace$.pipe(
+    map(({ x, y }) => ({
+      x,
+      y: canvas.clientHeight - y - 1,
+    }))
+  );
+
+  const mousePositionClipSpace$: Observable<vec2> = mousePositionWebGlViewportSpace$.pipe(
+    map(({ x, y }) => {
+      const normalizedViewportSpace = vec2.divide(
+        vec2.create(),
+        vec2.fromValues(x, y),
+        vec2.fromValues(canvas.clientWidth, canvas.clientHeight)
+      );
+
+      const clipSpace = vec2.scaleAndAdd(
+        vec2.create(),
+        vec2.fromValues(-1, -1),
+        normalizedViewportSpace,
+        2
+      );
+
+      return clipSpace;
+    })
+  );
+
+  mousePositionClipSpace$
+    .pipe(
+      tap((mousePosition) => {
+        render(
+          canvas,
+          gl,
+          glProgramId,
+          vertexBufferId,
+          positionAttributeLocation,
+          positions,
+          mousePosition
+        );
+      })
+    )
+    .subscribe();
 };
 
-function renderLoop(
+function render(
   canvas: HTMLCanvasElement,
   gl: WebGLRenderingContext,
   glProgramId: WebGLProgram,
   vertexBufferId: WebGLBuffer,
   positionAttributeLocation: number,
-  positions: Float32Array
+  positions: Float32Array,
+  mousePosition: vec2
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  // set the viewport
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
   gl.useProgram(glProgramId);
@@ -180,9 +233,9 @@ function renderLoop(
       // name of the variable on the shader side
       `translation`
     ),
-    0,
-    0,
-    0
+    mousePosition[0], // x
+    mousePosition[1], // y
+    0 // z
   );
 
   // bind buffers here
@@ -211,15 +264,4 @@ function renderLoop(
 
   // stop manipulating our program
   gl.useProgram(null);
-
-  window.requestAnimationFrame(() =>
-    renderLoop(
-      canvas,
-      gl,
-      glProgramId,
-      vertexBufferId,
-      positionAttributeLocation,
-      positions
-    )
-  );
 }
