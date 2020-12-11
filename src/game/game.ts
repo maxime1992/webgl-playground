@@ -1,9 +1,9 @@
 // vertex: run 1 time per vertex (points in the shape)
 // fragment: run 1 time per pixel
 
-import { vec2 } from 'gl-matrix';
+import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, Observable } from 'rxjs';
-import { map, tap } from 'rxjs/operators';
+import { map, mergeMap, startWith, takeUntil, tap } from 'rxjs/operators';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
 
@@ -154,10 +154,16 @@ export const startGame = () => {
    * "Render loop"
    */
 
-  const mousePositionViewportSpace$: Observable<Vec2> = fromEvent<MouseEvent>(
-    document,
-    'mousemove'
-  ).pipe(
+  // drag: translation --> current position of the mouse
+  // ctrl + drag: rotation --> starting point + the current one
+  // shift + drag: scale
+
+  const move$ = fromEvent<MouseEvent>(document, 'mousemove');
+  const down$ = fromEvent<MouseEvent>(document, 'mousedown');
+  const up$ = fromEvent<MouseEvent>(document, 'mouseup');
+  const drag$ = down$.pipe(mergeMap(() => move$.pipe(takeUntil(up$))));
+
+  const mousePositionViewportSpace$: Observable<Vec2> = drag$.pipe(
     map((mousePosition: MouseEvent) => ({
       x: mousePosition.clientX,
       y: mousePosition.clientY,
@@ -192,6 +198,7 @@ export const startGame = () => {
 
   mousePositionClipSpace$
     .pipe(
+      startWith(undefined),
       tap((mousePosition) => {
         render(
           canvas,
@@ -214,7 +221,7 @@ function render(
   vertexBufferId: WebGLBuffer,
   positionAttributeLocation: number,
   positions: Float32Array,
-  mousePosition: vec2
+  mousePosition?: vec2
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
@@ -226,17 +233,61 @@ function render(
 
   gl.useProgram(glProgramId);
 
-  // set uniforms
-  gl.uniform3f(
-    gl.getUniformLocation(
-      glProgramId,
-      // name of the variable on the shader side
-      `translation`
-    ),
-    mousePosition[0], // x
-    mousePosition[1], // y
-    0 // z
+  const scaleMatrix = mat4.fromScaling(
+    mat4.create(),
+    vec3.fromValues(0.5, 2, 1)
   );
+
+  const rotationMatrix = mat4.fromRotation(
+    mat4.create(),
+    glMatrix.toRadian(123),
+    vec3.fromValues(0, 0, 1)
+  );
+
+  const scaleAndRotateMatrix = mat4.multiply(
+    mat4.create(),
+    rotationMatrix,
+    scaleMatrix
+  );
+
+  if (mousePosition) {
+    const translationMatrix = mat4.fromTranslation(
+      mat4.create(),
+      vec3.fromValues(
+        mousePosition[0], // x
+        mousePosition[1], // y
+        0 // z
+      )
+    );
+
+    const transformationMatrix = mat4.multiply(
+      mat4.create(),
+      translationMatrix,
+      scaleAndRotateMatrix
+    );
+
+    // set uniforms
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(
+        glProgramId,
+        // name of the variable on the shader side
+        `transformation`
+      ),
+      false,
+      transformationMatrix
+    );
+  } else {
+    // set uniforms
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(
+        glProgramId,
+        // name of the variable on the shader side
+        `transformation`
+      ),
+      false,
+      scaleAndRotateMatrix
+    );
+  }
 
   // bind buffers here
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);

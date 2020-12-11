@@ -8,7 +8,7 @@ attribute vec3 position;
 
 // Data that is passed in from TS and remains 
 // constant during a single render pass.
-uniform vec3 translation; 
+uniform mat4 transformation; 
 
 // Data that is created in the shader and
 // shared between shaders.
@@ -19,6 +19,6 @@ varying vec3 color;
  */
 void main() {
   color = position * 0.5 + 0.5;
-  gl_Position = vec4(position + translation, 1);
+  gl_Position = transformation * vec4(position, 1);
 }
 `;
