@@ -295,9 +295,11 @@ function render(
         vec2.create(),
         userInput.currentMouseClipSpace
       );
+      const startAngle = Math.atan2(startVec[1], startVec[0]);
+      const endAngle = Math.atan2(endVec[1], endVec[0]);
       const rotationMatrix = mat4.fromRotation(
         mat4.create(),
-        vec2.dot(startVec, endVec),
+        endAngle - startAngle,
         vec3.fromValues(0, 0, 1)
       );
 
