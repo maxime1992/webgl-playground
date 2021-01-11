@@ -4,6 +4,7 @@
 import { mat4, vec2, vec3 } from 'gl-matrix';
 import { fromEvent } from 'rxjs';
 import { map, mergeMap, startWith, takeUntil, tap } from 'rxjs/operators';
+import forestPicture from '../assets/forest.jpg';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
 
@@ -156,6 +157,36 @@ export const startGame = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   /*
+   * Textures
+   */
+  const textureId = gl.createTexture();
+
+  if (!textureId) {
+    throw new Error(`Texture not available`);
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, textureId);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array([255, 128, 5, 255])
+  );
+
+  const image = new Image();
+
+  image.onload = () => {
+    console.log(image.src);
+  };
+
+  image.src = forestPicture;
+
+  /*
    * "Render loop"
    */
 
@@ -244,6 +275,7 @@ export const startGame = () => {
           vertexBufferId,
           positionAttributeLocation,
           positions,
+          textureId,
           userInput
         );
       })
@@ -258,6 +290,7 @@ function render(
   vertexBufferId: WebGLBuffer,
   positionAttributeLocation: number,
   positions: Float32Array,
+  textureId: WebGLTexture,
   userInput?: UserInput
 ) {
   canvas.width = canvas.clientWidth;
@@ -331,8 +364,22 @@ function render(
       // name of the variable on the shader side
       `transformation`
     ),
+    // always false for now
     false,
     transformationMatrix
+  );
+
+  // set texture
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textureId);
+
+  gl.uniform1i(
+    gl.getUniformLocation(
+      glProgramId,
+      // name of the variable on the shader side
+      `tex`
+    ),
+    0
   );
 
   // bind buffers here

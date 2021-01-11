@@ -2,9 +2,16 @@ export const frag = `
 precision highp float;
 precision highp int;
 
-varying vec3 color; // this is data that is shared between shaders
+// Data that is created in the shader and
+// shared between shaders.
+varying vec3 color;
+
+// Data that is passed in from TS and remains 
+// constant during a single render pass.
+uniform sampler2D tex;
 
 void main() {
-  gl_FragColor = vec4(color, 1.0);
+  vec4 textureRgba = texture2D(tex, vec2(0.5));
+  gl_FragColor = textureRgba;
 }
 `;
