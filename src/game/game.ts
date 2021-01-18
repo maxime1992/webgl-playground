@@ -18,6 +18,10 @@ interface UserInput {
   };
 }
 
+const VECTOR_3_SIZE = 3;
+const VECTOR_2_SIZE = 2;
+const NUM_BYTES_IN_FLOAT = 4;
+
 export const startGame = () => {
   /*
    * Setup WebGL
@@ -120,6 +124,13 @@ export const startGame = () => {
     throw new Error(`Failed to find attribute location for: 'position'`);
   }
 
+  // -1 if couldn't find attribute
+  const texCAttributeLocation = gl.getAttribLocation(glProgramId, `texC`);
+
+  if (texCAttributeLocation < 0) {
+    throw new Error(`Failed to find attribute location for: 'texC'`);
+  }
+
   /*
    * Create vertex buffer
    */
@@ -138,23 +149,55 @@ export const startGame = () => {
   //     .map(() => Math.random() * 2.0 - 1.0)
   // );
   const positions = new Float32Array([
+    // bottom left
     -0.5,
     -0.5,
     0,
+    // bottom right
     0.5,
     -0.5,
     0,
-    0,
+    // top left
+    -0.5,
     0.5,
+    0,
+    // top right
+    0.5,
+    0.5,
+    0,
+  ]);
+
+  const textureCoordinates = new Float32Array([
+    // bottom left
     0,
     1,
+    // bottom right (1,1)
+    1,
+    1,
+    // top left (0,0)
+    0,
+    0,
+    // top right
     1,
     0,
   ]);
 
+  /*
+  (0,0)-(1,0)
+     \
+      \
+       \
+        \
+  (0,1)-(1,1)
+  */
+
+  const vboData = new Float32Array([...positions, ...textureCoordinates]);
+
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
-  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+  const vertexCount = positions.length / VECTOR_3_SIZE;
 
   /*
    * Textures
@@ -180,8 +223,30 @@ export const startGame = () => {
 
   const image = new Image();
 
+  function isPowerOf2(value) {
+    return (value & (value - 1)) == 0;
+  }
+
   image.onload = () => {
     console.log(image.src);
+
+    // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
+    gl.bindTexture(gl.TEXTURE_2D, textureId);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    // WebGL1 has different requirements for power of 2 images
+    // vs non power of 2 images so check if the image is a
+    // power of 2 in both dimensions.
+    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+      // Yes, it's a power of 2. Generate mips.
+      gl.generateMipmap(gl.TEXTURE_2D);
+    } else {
+      // No, it's not a power of 2. Turn off mips and set
+      // wrapping to clamp to edge
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    }
   };
 
   image.src = forestPicture;
@@ -274,7 +339,8 @@ export const startGame = () => {
           glProgramId,
           vertexBufferId,
           positionAttributeLocation,
-          positions,
+          texCAttributeLocation,
+          vertexCount,
           textureId,
           userInput
         );
@@ -289,7 +355,8 @@ function render(
   glProgramId: WebGLProgram,
   vertexBufferId: WebGLBuffer,
   positionAttributeLocation: number,
-  positions: Float32Array,
+  texCAttributeLocation: number,
+  vertexCount: number,
   textureId: WebGLTexture,
   userInput?: UserInput
 ) {
@@ -386,15 +453,28 @@ function render(
   gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
 
   gl.enableVertexAttribArray(positionAttributeLocation);
-  const VECTOR_SIZE = 3;
+
   gl.vertexAttribPointer(
     positionAttributeLocation,
-    VECTOR_SIZE,
+    VECTOR_3_SIZE,
     gl.FLOAT,
     // no idea what that is :D
     false,
     0,
     0
+  );
+
+  gl.enableVertexAttribArray(texCAttributeLocation);
+
+  gl.vertexAttribPointer(
+    texCAttributeLocation,
+    VECTOR_2_SIZE,
+    gl.FLOAT,
+    // no idea what that is :D
+    false,
+    0,
+    // offset in bytes where the texture coordinates starts
+    vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
 
   // gl.POINTS
@@ -403,7 +483,8 @@ function render(
   // gl.TRIANGLES
   // gl.TRIANGLE_STRIP
   // gl.TRIANGLE_FAN
-  gl.drawArrays(gl.TRIANGLE_FAN, 0, positions.length / VECTOR_SIZE);
+  // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   // stop manipulating our program
