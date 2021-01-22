@@ -2,9 +2,7 @@
 // fragment: run 1 time per pixel
 
 import { mat4, vec2, vec3 } from 'gl-matrix';
-import { fromEvent } from 'rxjs';
-import { map, mergeMap, startWith, takeUntil, tap } from 'rxjs/operators';
-import forestPicture from '../assets/forest.jpg';
+import forestPicture from '../assets/forest-low-quality.jpg';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
 
