@@ -2,6 +2,15 @@
 // fragment: run 1 time per pixel
 
 import { mat4, vec2, vec3 } from 'gl-matrix';
+import { fromEvent, merge, Observable } from 'rxjs';
+import {
+  map,
+  mapTo,
+  mergeMap,
+  startWith,
+  takeUntil,
+  tap,
+} from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
@@ -219,35 +228,52 @@ export const startGame = () => {
     new Uint8Array([255, 128, 5, 255])
   );
 
-  const image = new Image();
-
   function isPowerOf2(value) {
     return (value & (value - 1)) == 0;
   }
 
-  image.onload = () => {
-    console.log(image.src);
+  const image$ = new Observable((observer) => {
+    const image = new Image();
 
-    // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
-    gl.bindTexture(gl.TEXTURE_2D, textureId);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+    image.onload = () => {
+      // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
+      gl.bindTexture(gl.TEXTURE_2D, textureId);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        image
+      );
 
-    // WebGL1 has different requirements for power of 2 images
-    // vs non power of 2 images so check if the image is a
-    // power of 2 in both dimensions.
-    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-      // Yes, it's a power of 2. Generate mips.
-      gl.generateMipmap(gl.TEXTURE_2D);
-    } else {
-      // No, it's not a power of 2. Turn off mips and set
-      // wrapping to clamp to edge
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    }
-  };
+      // WebGL1 has different requirements for power of 2 images
+      // vs non power of 2 images so check if the image is a
+      // power of 2 in both dimensions.
+      if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+        // Yes, it's a power of 2. Generate mips.
+        gl.generateMipmap(gl.TEXTURE_2D);
+      } else {
+        // No, it's not a power of 2. Turn off mips and set
+        // wrapping to clamp to edge
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          // other option `gl.NEAREST`
+          gl.LINEAR
+        );
+      }
 
-  image.src = forestPicture;
+      gl.bindTexture(gl.TEXTURE_2D, null);
+
+      observer.next();
+      observer.complete();
+    };
+
+    image.src = forestPicture;
+  });
 
   /*
    * "Render loop"
@@ -327,7 +353,7 @@ export const startGame = () => {
     return mousePositionClipSpace;
   }
 
-  userInput$
+  merge(userInput$, image$.pipe(mapTo(undefined)))
     .pipe(
       startWith(undefined),
       tap((userInput) => {
