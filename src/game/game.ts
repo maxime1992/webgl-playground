@@ -280,6 +280,10 @@ export const startGame = () => {
     gl.UNSIGNED_BYTE,
     null
   );
+   // set the filtering so we don't need mips
+   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
   // the idea of the frame buffer is that we can render onto
   // it instead of the screen but it lets us pass that render
@@ -575,13 +579,12 @@ function render(
     // offset in bytes where the texture coordinates starts
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
-
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  // set the viewport
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-
+  
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+  
+  // set the viewport and clear the framebuffer
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   // gl.POINTS
   // gl.LINES
@@ -591,28 +594,11 @@ function render(
   // gl.TRIANGLE_FAN
   // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
-
-  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  switch (framebufferStatus) {
-    case gl.FRAMEBUFFER_COMPLETE:
-      break;
-    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
-      );
-    case gl.FRAMEBUFFER_UNSUPPORTED:
-      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
-    default:
-      throw new Error(`Incomplete framebuffer: Unknown status`);
-  }
+  // ^ This rendered to the framebuffer referenced by `frameBufferId`.
+  // That framebuffer is storing the color values in the texture 
+  // referenced by `frameBufferTextureId`. Now we can bind the default
+  // framebuffer (the screen), bind the `frameBufferTextureId` texture, 
+  // and re-render the scene to view the results.
 
   gl.bindFramebuffer(
     gl.FRAMEBUFFER,
@@ -620,27 +606,16 @@ function render(
     null
   );
 
+  // set the viewport and clear the framebuffer
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // set the viewport
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-
-  // set texture
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-
-  gl.uniform1i(
-    gl.getUniformLocation(
-      glProgramId,
-      // name of the variable on the shader side
-      `tex`
-    ),
-    0
-  );
-
+  // Bind the texture made from the previous render
   gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
 
+  // Unbind things
+  gl.bindTexture(gl.TEXTURE_2D, null);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   // stop manipulating our program
