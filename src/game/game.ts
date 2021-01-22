@@ -215,19 +215,6 @@ export const startGame = () => {
     throw new Error(`Texture not available`);
   }
 
-  gl.bindTexture(gl.TEXTURE_2D, textureId);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    1,
-    1,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    new Uint8Array([255, 128, 5, 255])
-  );
-
   function isPowerOf2(value) {
     return (value & (value - 1)) == 0;
   }
@@ -274,6 +261,95 @@ export const startGame = () => {
 
     image.src = forestPicture;
   });
+
+  const frameBufferTextureId = gl.createTexture();
+
+  if (!frameBufferTextureId) {
+    throw new Error(`Couldn't create a texture`);
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    canvas.clientWidth,
+    canvas.clientHeight,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null
+  );
+
+  // the idea of the frame buffer is that we can render onto
+  // it instead of the screen but it lets us pass that render
+  // buffer to other transformation pipelines if we need to
+  // (for example to blur a picture)
+  const frameBufferId = gl.createFramebuffer();
+
+  if (!frameBufferId) {
+    throw new Error(`Couldn't create a framebuffer`);
+  }
+
+  // simply to define the depth attachment that we don't really use
+  // and pass it to the frame buffer which requires it but we're only
+  // interested in the color attachment (webgl texture) of the framebuffer
+  const renderBufferId = gl.createRenderbuffer();
+
+  if (!renderBufferId) {
+    throw new Error(`Couldn't create a render buffer`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
+
+  gl.renderbufferStorage(
+    gl.RENDERBUFFER,
+    gl.DEPTH_COMPONENT16,
+    canvas.clientWidth,
+    canvas.clientHeight
+  );
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    renderBufferId
+  );
+
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    frameBufferTextureId,
+    0
+  );
+
+  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  switch (framebufferStatus) {
+    case gl.FRAMEBUFFER_COMPLETE:
+      break;
+    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
+      );
+    case gl.FRAMEBUFFER_UNSUPPORTED:
+      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
+    default:
+      throw new Error(`Incomplete framebuffer: Unknown status`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
 
   /*
    * "Render loop"
@@ -366,6 +442,8 @@ export const startGame = () => {
           texCAttributeLocation,
           vertexCount,
           textureId,
+          frameBufferTextureId,
+          frameBufferId,
           userInput
         );
       })
@@ -382,15 +460,12 @@ function render(
   texCAttributeLocation: number,
   vertexCount: number,
   textureId: WebGLTexture,
+  frameBufferTextureId: WebGLTexture,
+  frameBufferId: WebGLFramebuffer,
   userInput?: UserInput
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
-
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  // set the viewport
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
   gl.useProgram(glProgramId);
 
@@ -501,6 +576,13 @@ function render(
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
 
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // set the viewport
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+
   // gl.POINTS
   // gl.LINES
   // gl.LINE_STRIP
@@ -509,6 +591,56 @@ function render(
   // gl.TRIANGLE_FAN
   // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+
+  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  switch (framebufferStatus) {
+    case gl.FRAMEBUFFER_COMPLETE:
+      break;
+    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
+      );
+    case gl.FRAMEBUFFER_UNSUPPORTED:
+      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
+    default:
+      throw new Error(`Incomplete framebuffer: Unknown status`);
+  }
+
+  gl.bindFramebuffer(
+    gl.FRAMEBUFFER,
+    // reset to the default one which is just to draw on screen
+    null
+  );
+
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // set the viewport
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+  // set texture
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+
+  gl.uniform1i(
+    gl.getUniformLocation(
+      glProgramId,
+      // name of the variable on the shader side
+      `tex`
+    ),
+    0
+  );
+
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   // stop manipulating our program
