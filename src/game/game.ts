@@ -25,6 +25,169 @@ interface UserInput {
   };
 }
 
+// often called "pipeline" or "render pass"
+interface Pipeline {
+  programId: WebGLProgram;
+  bufferId: WebGLBuffer;
+  textureId: WebGLTexture;
+  frameBufferId: WebGLFramebuffer | null;
+}
+
+// will do later on
+// function renderPassToFrameBuffer(pipeline: Pipeline):void {
+// }
+
+interface ShaderData {
+  source: string;
+  // type can be either
+  // gl.VERTEX_SHADER
+  // gl.FRAGMENT_SHADER
+  type: number;
+}
+
+function createShader(
+  gl: WebGLRenderingContext,
+  shaderData: ShaderData
+): WebGLShader {
+  // Create the WebGL shader id. This does nothing
+  // until you use the ID in other functions
+  const webGlShaderId = gl.createShader(shaderData.type);
+
+  if (!webGlShaderId) {
+    throw new Error(`Couldn't create the vertex shader`);
+  }
+
+  // Tells WebGL what shader code is (the GLSL)
+  gl.shaderSource(webGlShaderId, shaderData.source);
+
+  // This attempts to compiler the shader code
+  gl.compileShader(webGlShaderId);
+
+  // This queries for any errors in the compilation process.
+  if (!gl.getShaderParameter(webGlShaderId, gl.COMPILE_STATUS)) {
+    throw new Error(
+      `Couldn't compile the shader. ${gl.getShaderInfoLog(webGlShaderId)}`
+    );
+  }
+
+  return webGlShaderId;
+}
+
+function createProgram(
+  gl: WebGLRenderingContext,
+  vertexData: ShaderData,
+  fragmentData: ShaderData
+): WebGLProgram {
+  const webGlVertexShaderId = createShader(gl, vertexData);
+  const webGlFragShaderId = createShader(gl, fragmentData);
+
+  // create a program to link the shaders
+  const glProgramId = gl.createProgram();
+
+  if (!glProgramId) {
+    throw new Error(`Couldn't create program`);
+  }
+
+  gl.attachShader(glProgramId, webGlVertexShaderId);
+  gl.attachShader(glProgramId, webGlFragShaderId);
+
+  // linking of the attached shaders
+  gl.linkProgram(glProgramId);
+
+  if (!gl.getProgramParameter(glProgramId, gl.LINK_STATUS)) {
+    throw new Error(
+      `Couldn't link the attached shaders. ${gl.getProgramInfoLog(glProgramId)}`
+    );
+  }
+
+  gl.detachShader(glProgramId, webGlVertexShaderId);
+  gl.detachShader(glProgramId, webGlFragShaderId);
+
+  return glProgramId;
+}
+
+function createBuffer(
+  gl: WebGLRenderingContext,
+  vboData: Float32Array
+): WebGLBuffer {
+  // create buffer on the GPU
+  const bufferId = gl.createBuffer();
+
+  if (!bufferId) {
+    throw new Error(`Couldn't create the buffer.`);
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
+  gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+  return bufferId;
+}
+
+function createTexture(
+  gl: WebGLRenderingContext,
+  width: number,
+  height: number,
+  data: ArrayBufferView | null
+): WebGLTexture {
+  const frameBufferTextureId = gl.createTexture();
+
+  if (!frameBufferTextureId) {
+    throw new Error(`Couldn't create a texture`);
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    width,
+    height,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    data
+  );
+  // set the filtering so we don't need mips
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  return frameBufferTextureId;
+}
+
+function updateTexture(
+  gl: WebGLRenderingContext,
+  textureId: WebGLTexture,
+  image: HTMLImageElement
+): void {
+  // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
+
+  gl.bindTexture(gl.TEXTURE_2D, textureId);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+  // WebGL1 has different requirements for power of 2 images
+  // vs non power of 2 images so check if the image is a
+  // power of 2 in both dimensions.
+  if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+    // Yes, it's a power of 2. Generate mips.
+    gl.generateMipmap(gl.TEXTURE_2D);
+  } else {
+    // No, it's not a power of 2. Turn off mips and set
+    // wrapping to clamp to edge
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(
+      gl.TEXTURE_2D,
+      gl.TEXTURE_MIN_FILTER,
+      // other option `gl.NEAREST`
+      gl.LINEAR
+    );
+  }
+
+  gl.bindTexture(gl.TEXTURE_2D, null);
+}
+
 const VECTOR_3_SIZE = 3;
 const VECTOR_2_SIZE = 2;
 const NUM_BYTES_IN_FLOAT = 4;
@@ -52,74 +215,11 @@ export const startGame = () => {
   // set default value
   gl.clearColor(0, 0, 0, 1);
 
-  /*
-   * Setup Shaders
-   */
-
-  // Create the WebGL shader id. This does nothing
-  // until you use the ID in other functions
-  const webGlVertexShaderId = gl.createShader(gl.VERTEX_SHADER);
-
-  if (!webGlVertexShaderId) {
-    throw new Error(`Couldn't create the vertex shader`);
-  }
-
-  // Tells WebGL what shader code is (the GLSL)
-  gl.shaderSource(webGlVertexShaderId, vertex);
-
-  // This attempts to compiler the shader code
-  gl.compileShader(webGlVertexShaderId);
-
-  // This queries for any errors in the compilation process.
-  if (!gl.getShaderParameter(webGlVertexShaderId, gl.COMPILE_STATUS)) {
-    throw new Error(
-      `Couldn't compile the vertex shader. ${gl.getShaderInfoLog(
-        webGlVertexShaderId
-      )}`
-    );
-  }
-
-  // --------------------------------
-
-  const webGlFragShaderId = gl.createShader(gl.FRAGMENT_SHADER);
-
-  if (!webGlFragShaderId) {
-    throw new Error(`Couldn't create the fragment shader`);
-  }
-
-  gl.shaderSource(webGlFragShaderId, frag);
-
-  gl.compileShader(webGlFragShaderId);
-
-  if (!gl.getShaderParameter(webGlFragShaderId, gl.COMPILE_STATUS)) {
-    throw new Error(
-      `Couldn't compile the fragment shader. ${gl.getShaderInfoLog(
-        webGlFragShaderId
-      )}`
-    );
-  }
-
-  // create a program to link the shaders
-  const glProgramId = gl.createProgram();
-
-  if (!glProgramId) {
-    throw new Error(`Couldn't create program`);
-  }
-
-  gl.attachShader(glProgramId, webGlVertexShaderId);
-  gl.attachShader(glProgramId, webGlFragShaderId);
-
-  // linking of the attached shaders
-  gl.linkProgram(glProgramId);
-
-  if (!gl.getProgramParameter(glProgramId, gl.LINK_STATUS)) {
-    throw new Error(
-      `Couldn't link the attached shaders. ${gl.getProgramInfoLog(glProgramId)}`
-    );
-  }
-
-  gl.detachShader(glProgramId, webGlVertexShaderId);
-  gl.detachShader(glProgramId, webGlFragShaderId);
+  const glProgramId = createProgram(
+    gl,
+    { type: gl.VERTEX_SHADER, source: vertex },
+    { type: gl.FRAGMENT_SHADER, source: frag }
+  );
 
   // -1 if couldn't find attribute
   const positionAttributeLocation = gl.getAttribLocation(
@@ -141,13 +241,6 @@ export const startGame = () => {
   /*
    * Create vertex buffer
    */
-
-  // create buffer on the GPU
-  const vertexBufferId = gl.createBuffer();
-
-  if (!vertexBufferId) {
-    throw new Error(`Couldn't create the buffer.`);
-  }
 
   // [-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]
   // const positions = new Float32Array(
@@ -200,60 +293,21 @@ export const startGame = () => {
 
   const vboData = new Float32Array([...positions, ...textureCoordinates]);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
-  gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+  const vertexBufferId = createBuffer(gl, vboData);
 
   const vertexCount = positions.length / VECTOR_3_SIZE;
 
   /*
    * Textures
    */
-  const textureId = gl.createTexture();
 
-  if (!textureId) {
-    throw new Error(`Texture not available`);
-  }
-
-  function isPowerOf2(value) {
-    return (value & (value - 1)) == 0;
-  }
+  const textureId = createTexture(gl, 1, 1, null);
 
   const image$ = new Observable((observer) => {
     const image = new Image();
 
     image.onload = () => {
-      // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
-      gl.bindTexture(gl.TEXTURE_2D, textureId);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        image
-      );
-
-      // WebGL1 has different requirements for power of 2 images
-      // vs non power of 2 images so check if the image is a
-      // power of 2 in both dimensions.
-      if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-        // Yes, it's a power of 2. Generate mips.
-        gl.generateMipmap(gl.TEXTURE_2D);
-      } else {
-        // No, it's not a power of 2. Turn off mips and set
-        // wrapping to clamp to edge
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(
-          gl.TEXTURE_2D,
-          gl.TEXTURE_MIN_FILTER,
-          // other option `gl.NEAREST`
-          gl.LINEAR
-        );
-      }
-
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      updateTexture(gl, textureId, image);
 
       observer.next();
       observer.complete();
@@ -262,98 +316,23 @@ export const startGame = () => {
     image.src = forestPicture;
   });
 
-  const frameBufferTextureId = gl.createTexture();
-
-  if (!frameBufferTextureId) {
-    throw new Error(`Couldn't create a texture`);
-  }
-
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
+  const frameBufferTextureId = createTexture(
+    gl,
     canvas.clientWidth,
     canvas.clientHeight,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
     null
   );
-   // set the filtering so we don't need mips
-   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
   // the idea of the frame buffer is that we can render onto
   // it instead of the screen but it lets us pass that render
   // buffer to other transformation pipelines if we need to
   // (for example to blur a picture)
-  const frameBufferId = gl.createFramebuffer();
-
-  if (!frameBufferId) {
-    throw new Error(`Couldn't create a framebuffer`);
-  }
-
-  // simply to define the depth attachment that we don't really use
-  // and pass it to the frame buffer which requires it but we're only
-  // interested in the color attachment (webgl texture) of the framebuffer
-  const renderBufferId = gl.createRenderbuffer();
-
-  if (!renderBufferId) {
-    throw new Error(`Couldn't create a render buffer`);
-  }
-
-  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
-
-  gl.renderbufferStorage(
-    gl.RENDERBUFFER,
-    gl.DEPTH_COMPONENT16,
+  const frameBufferId = createFrameBuffer(
+    gl,
     canvas.clientWidth,
-    canvas.clientHeight
+    canvas.clientHeight,
+    frameBufferTextureId
   );
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER,
-    gl.DEPTH_ATTACHMENT,
-    gl.RENDERBUFFER,
-    renderBufferId
-  );
-
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    frameBufferTextureId,
-    0
-  );
-
-  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  switch (framebufferStatus) {
-    case gl.FRAMEBUFFER_COMPLETE:
-      break;
-    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
-      );
-    case gl.FRAMEBUFFER_UNSUPPORTED:
-      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
-    default:
-      throw new Error(`Incomplete framebuffer: Unknown status`);
-  }
-
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.bindTexture(gl.TEXTURE_2D, null);
 
   /*
    * "Render loop"
@@ -421,7 +400,7 @@ export const startGame = () => {
       vec2.fromValues(canvas.clientWidth, canvas.clientHeight)
     );
 
-    // we now need to tranform that into clip space which goes
+    // we now need to transform that into clip space which goes
     // from -1,-1 (bottom left) to 1,1 (top right)
     const mousePositionClipSpace = vec2.scaleAndAdd(
       vec2.create(),
@@ -454,6 +433,80 @@ export const startGame = () => {
     )
     .subscribe();
 };
+
+function createFrameBuffer(
+  gl: WebGLRenderingContext,
+  width: number,
+  height: number,
+  frameBufferTextureId: WebGLTexture
+) {
+  const frameBufferId = gl.createFramebuffer();
+
+  if (!frameBufferId) {
+    throw new Error(`Couldn't create a framebuffer`);
+  }
+
+  // simply to define the depth attachment that we don't really use
+  // and pass it to the frame buffer which requires it but we're only
+  // interested in the color attachment (webgl texture) of the framebuffer
+  const renderBufferId = gl.createRenderbuffer();
+
+  if (!renderBufferId) {
+    throw new Error(`Couldn't create a render buffer`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    renderBufferId
+  );
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    frameBufferTextureId,
+    0
+  );
+
+  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  switch (framebufferStatus) {
+    case gl.FRAMEBUFFER_COMPLETE:
+      break;
+    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
+      );
+    case gl.FRAMEBUFFER_UNSUPPORTED:
+      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
+    default:
+      throw new Error(`Incomplete framebuffer: Unknown status`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+
+  return frameBufferId;
+}
+
+function isPowerOf2(value) {
+  return (value & (value - 1)) == 0;
+}
 
 function render(
   canvas: HTMLCanvasElement,
@@ -579,9 +632,9 @@ function render(
     // offset in bytes where the texture coordinates starts
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
-  
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
-  
+
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -595,9 +648,9 @@ function render(
   // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
   // ^ This rendered to the framebuffer referenced by `frameBufferId`.
-  // That framebuffer is storing the color values in the texture 
+  // That framebuffer is storing the color values in the texture
   // referenced by `frameBufferTextureId`. Now we can bind the default
-  // framebuffer (the screen), bind the `frameBufferTextureId` texture, 
+  // framebuffer (the screen), bind the `frameBufferTextureId` texture,
   // and re-render the scene to view the results.
 
   gl.bindFramebuffer(
