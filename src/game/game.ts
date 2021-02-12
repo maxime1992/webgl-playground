@@ -12,6 +12,8 @@ import {
   tap,
 } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
+import { filterFrag } from './filter.frag';
+import { filterVertex } from './filter.vertex';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
 
@@ -411,6 +413,63 @@ export const startGame = () => {
     frameBufferId: frameBufferId,
   };
 
+  const filterProgramId = createProgram(
+    gl,
+    { type: gl.VERTEX_SHADER, source: filterVertex },
+    { type: gl.FRAGMENT_SHADER, source: filterFrag }
+  );
+
+  (() => {
+    const positions = new Float32Array([
+      // bottom left
+      -1,
+      -1,
+      0,
+      // bottom right
+      1,
+      -1,
+      0,
+      // top left
+      -1,
+      1,
+      0,
+      // top right
+      1,
+      1,
+      0,
+    ]);
+
+    const textureCoordinates = new Float32Array([
+      // bottom left
+      0,
+      0,
+      // bottom right (1,1)
+      1,
+      0,
+      // top left (0,0)
+      0,
+      1,
+      // top right
+      1,
+      1,
+    ]);
+
+    /*
+  (0,0)-(1,0)
+     \
+      \
+       \
+        \
+  (0,1)-(1,1)
+  */
+
+    const vboData = new Float32Array([...positions, ...textureCoordinates]);
+
+    const vertexBufferId = createBuffer(gl, vboData);
+
+    const vertexCount = positions.length / VECTOR_3_SIZE;
+  })();
+
   /*
    * "Render loop"
    */
@@ -634,7 +693,7 @@ function render(
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
 
-  gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
+  // gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
 
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
@@ -654,19 +713,19 @@ function render(
   // framebuffer (the screen), bind the `frameBufferTextureId` texture,
   // and re-render the scene to view the results.
 
-  gl.bindFramebuffer(
-    gl.FRAMEBUFFER,
-    // reset to the default one which is just to draw on screen
-    null
-  );
+  // gl.bindFramebuffer(
+  //   gl.FRAMEBUFFER,
+  //   // reset to the default one which is just to draw on screen
+  //   null
+  // );
 
-  // set the viewport and clear the framebuffer
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // // set the viewport and clear the framebuffer
+  // gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+  // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // Bind the texture made from the previous render
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+  // // Bind the texture made from the previous render
+  // gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+  // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
 
   // Unbind things
   gl.bindTexture(gl.TEXTURE_2D, null);
