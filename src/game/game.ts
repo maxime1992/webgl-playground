@@ -188,6 +188,76 @@ function updateTexture(
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
+function createFrameBuffer(
+  gl: WebGLRenderingContext,
+  width: number,
+  height: number,
+  frameBufferTextureId: WebGLTexture
+) {
+  const frameBufferId = gl.createFramebuffer();
+
+  if (!frameBufferId) {
+    throw new Error(`Couldn't create a framebuffer`);
+  }
+
+  // simply to define the depth attachment that we don't really use
+  // and pass it to the frame buffer which requires it but we're only
+  // interested in the color attachment (webgl texture) of the framebuffer
+  const renderBufferId = gl.createRenderbuffer();
+
+  if (!renderBufferId) {
+    throw new Error(`Couldn't create a render buffer`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    renderBufferId
+  );
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    frameBufferTextureId,
+    0
+  );
+
+  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  switch (framebufferStatus) {
+    case gl.FRAMEBUFFER_COMPLETE:
+      break;
+    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
+      );
+    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+      throw new Error(
+        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
+      );
+    case gl.FRAMEBUFFER_UNSUPPORTED:
+      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
+    default:
+      throw new Error(`Incomplete framebuffer: Unknown status`);
+  }
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+
+  return frameBufferId;
+}
+
 const VECTOR_3_SIZE = 3;
 const VECTOR_2_SIZE = 2;
 const NUM_BYTES_IN_FLOAT = 4;
@@ -334,6 +404,13 @@ export const startGame = () => {
     frameBufferTextureId
   );
 
+  const pipeline: Pipeline = {
+    programId: glProgramId,
+    bufferId: vertexBufferId,
+    textureId: textureId,
+    frameBufferId: frameBufferId,
+  };
+
   /*
    * "Render loop"
    */
@@ -419,90 +496,17 @@ export const startGame = () => {
         render(
           canvas,
           gl,
-          glProgramId,
-          vertexBufferId,
+          pipeline,
           positionAttributeLocation,
           texCAttributeLocation,
           vertexCount,
-          textureId,
           frameBufferTextureId,
-          frameBufferId,
           userInput
         );
       })
     )
     .subscribe();
 };
-
-function createFrameBuffer(
-  gl: WebGLRenderingContext,
-  width: number,
-  height: number,
-  frameBufferTextureId: WebGLTexture
-) {
-  const frameBufferId = gl.createFramebuffer();
-
-  if (!frameBufferId) {
-    throw new Error(`Couldn't create a framebuffer`);
-  }
-
-  // simply to define the depth attachment that we don't really use
-  // and pass it to the frame buffer which requires it but we're only
-  // interested in the color attachment (webgl texture) of the framebuffer
-  const renderBufferId = gl.createRenderbuffer();
-
-  if (!renderBufferId) {
-    throw new Error(`Couldn't create a render buffer`);
-  }
-
-  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
-  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER,
-    gl.DEPTH_ATTACHMENT,
-    gl.RENDERBUFFER,
-    renderBufferId
-  );
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    frameBufferTextureId,
-    0
-  );
-
-  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  switch (framebufferStatus) {
-    case gl.FRAMEBUFFER_COMPLETE:
-      break;
-    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
-      );
-    case gl.FRAMEBUFFER_UNSUPPORTED:
-      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
-    default:
-      throw new Error(`Incomplete framebuffer: Unknown status`);
-  }
-
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-
-  return frameBufferId;
-}
 
 function isPowerOf2(value) {
   return (value & (value - 1)) == 0;
@@ -511,20 +515,17 @@ function isPowerOf2(value) {
 function render(
   canvas: HTMLCanvasElement,
   gl: WebGLRenderingContext,
-  glProgramId: WebGLProgram,
-  vertexBufferId: WebGLBuffer,
+  pipeline: Pipeline,
   positionAttributeLocation: number,
   texCAttributeLocation: number,
   vertexCount: number,
-  textureId: WebGLTexture,
   frameBufferTextureId: WebGLTexture,
-  frameBufferId: WebGLFramebuffer,
   userInput?: UserInput
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
-  gl.useProgram(glProgramId);
+  gl.useProgram(pipeline.programId);
 
   let transformationMatrix = mat4.create();
 
@@ -583,7 +584,7 @@ function render(
   // set uniforms
   gl.uniformMatrix4fv(
     gl.getUniformLocation(
-      glProgramId,
+      pipeline.programId,
       // name of the variable on the shader side
       `transformation`
     ),
@@ -594,11 +595,11 @@ function render(
 
   // set texture
   gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, textureId);
+  gl.bindTexture(gl.TEXTURE_2D, pipeline.textureId);
 
   gl.uniform1i(
     gl.getUniformLocation(
-      glProgramId,
+      pipeline.programId,
       // name of the variable on the shader side
       `tex`
     ),
@@ -606,7 +607,7 @@ function render(
   );
 
   // bind buffers here
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferId);
+  gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);
 
   gl.enableVertexAttribArray(positionAttributeLocation);
 
@@ -633,7 +634,7 @@ function render(
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
 
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
 
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
