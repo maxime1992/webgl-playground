@@ -13,17 +13,12 @@ attribute vec2 texC;
 // constant during a single render pass.
 uniform mat4 transformation; 
 
-// Data that is created in the shader and
-// shared between shaders.
-varying vec3 color;
-
 varying vec2 texCoor;
 
 /*
  * Comment!
  */
 void main() {
-  color = position * 0.5 + 0.5;
   gl_Position = transformation * vec4(position, 1);
   texCoor = texC;
 }

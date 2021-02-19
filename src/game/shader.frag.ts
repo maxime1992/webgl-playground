@@ -2,10 +2,6 @@ export const frag = `
 precision highp float;
 precision highp int;
 
-// Data that is created in the shader and
-// shared between shaders.
-varying vec3 color;
-
 // Data that is passed in from TS and remains 
 // constant during a single render pass.
 uniform sampler2D tex;
