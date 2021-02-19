@@ -13,7 +13,6 @@ import {
 } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
 import { filterFrag } from './filter.frag';
-import { filterVertex } from './filter.vertex';
 import { frag } from './shader.frag';
 import { vertex } from './shader.vertex';
 
@@ -415,7 +414,10 @@ export const startGame = () => {
 
   const filterProgramId = createProgram(
     gl,
-    { type: gl.VERTEX_SHADER, source: filterVertex },
+    // we use the same vertex as the first one for now
+    // as we don't do anything special on the vertex level
+    // and for the transformation we can just pass the identity matrix
+    { type: gl.VERTEX_SHADER, source: vertex },
     { type: gl.FRAGMENT_SHADER, source: filterFrag }
   );
 
