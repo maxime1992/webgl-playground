@@ -32,6 +32,8 @@ interface Pipeline {
   bufferId: WebGLBuffer;
   textureId: WebGLTexture;
   frameBufferId: WebGLFramebuffer | null;
+  positionAttributeLocation: number;
+  texCAttributeLocation: number;
 }
 
 // will do later on
@@ -259,6 +261,23 @@ function createFrameBuffer(
   return frameBufferId;
 }
 
+function getAttributeLocation(
+  gl: WebGLRenderingContext,
+  glProgramId: WebGLProgram,
+  attributeName: string
+) {
+  // -1 if couldn't find attribute
+  const positionAttributeLocation = gl.getAttribLocation(
+    glProgramId,
+    attributeName
+  );
+
+  if (positionAttributeLocation < 0) {
+    throw new Error(`Failed to find attribute location for: 'position'`);
+  }
+  return positionAttributeLocation;
+}
+
 const VECTOR_3_SIZE = 3;
 const VECTOR_2_SIZE = 2;
 const NUM_BYTES_IN_FLOAT = 4;
@@ -291,23 +310,6 @@ export const startGame = () => {
     { type: gl.VERTEX_SHADER, source: vertex },
     { type: gl.FRAGMENT_SHADER, source: frag }
   );
-
-  // -1 if couldn't find attribute
-  const positionAttributeLocation = gl.getAttribLocation(
-    glProgramId,
-    `position`
-  );
-
-  if (positionAttributeLocation < 0) {
-    throw new Error(`Failed to find attribute location for: 'position'`);
-  }
-
-  // -1 if couldn't find attribute
-  const texCAttributeLocation = gl.getAttribLocation(glProgramId, `texC`);
-
-  if (texCAttributeLocation < 0) {
-    throw new Error(`Failed to find attribute location for: 'texC'`);
-  }
 
   /*
    * Create vertex buffer
@@ -410,6 +412,12 @@ export const startGame = () => {
     bufferId: vertexBufferId,
     textureId: textureId,
     frameBufferId: frameBufferId,
+    positionAttributeLocation: getAttributeLocation(
+      gl,
+      glProgramId,
+      'position'
+    ),
+    texCAttributeLocation: getAttributeLocation(gl, glProgramId, 'texC'),
   };
 
   const filterProgramId = createProgram(
@@ -421,42 +429,41 @@ export const startGame = () => {
     { type: gl.FRAGMENT_SHADER, source: filterFrag }
   );
 
-  (() => {
-    const positions = new Float32Array([
-      // bottom left
-      -1,
-      -1,
-      0,
-      // bottom right
-      1,
-      -1,
-      0,
-      // top left
-      -1,
-      1,
-      0,
-      // top right
-      1,
-      1,
-      0,
-    ]);
+  const filterPositions = new Float32Array([
+    // bottom left
+    -1,
+    -1,
+    0,
+    // bottom right
+    1,
+    -1,
+    0,
+    // top left
+    -1,
+    1,
+    0,
+    // top right
+    1,
+    1,
+    0,
+  ]);
 
-    const textureCoordinates = new Float32Array([
-      // bottom left
-      0,
-      0,
-      // bottom right (1,1)
-      1,
-      0,
-      // top left (0,0)
-      0,
-      1,
-      // top right
-      1,
-      1,
-    ]);
+  const filterTextureCoordinates = new Float32Array([
+    // bottom left
+    0,
+    0,
+    // bottom right (1,1)
+    1,
+    0,
+    // top left (0,0)
+    0,
+    1,
+    // top right
+    1,
+    1,
+  ]);
 
-    /*
+  /*
   (0,0)-(1,0)
      \
       \
@@ -465,12 +472,25 @@ export const startGame = () => {
   (0,1)-(1,1)
   */
 
-    const vboData = new Float32Array([...positions, ...textureCoordinates]);
+  const filterVboData = new Float32Array([
+    ...filterPositions,
+    ...filterTextureCoordinates,
+  ]);
 
-    const vertexBufferId = createBuffer(gl, vboData);
+  const filterVertexBufferId = createBuffer(gl, filterVboData);
 
-    const vertexCount = positions.length / VECTOR_3_SIZE;
-  })();
+  const filterPipeline: Pipeline = {
+    programId: filterProgramId,
+    bufferId: filterVertexBufferId,
+    textureId: frameBufferTextureId,
+    frameBufferId: null,
+    positionAttributeLocation: getAttributeLocation(
+      gl,
+      filterProgramId,
+      'position'
+    ),
+    texCAttributeLocation: getAttributeLocation(gl, filterProgramId, 'texC'),
+  };
 
   /*
    * "Render loop"
@@ -554,16 +574,7 @@ export const startGame = () => {
     .pipe(
       startWith(undefined),
       tap((userInput) => {
-        render(
-          canvas,
-          gl,
-          pipeline,
-          positionAttributeLocation,
-          texCAttributeLocation,
-          vertexCount,
-          frameBufferTextureId,
-          userInput
-        );
+        render(canvas, gl, pipeline, filterPipeline, vertexCount, userInput);
       })
     )
     .subscribe();
@@ -577,16 +588,12 @@ function render(
   canvas: HTMLCanvasElement,
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
-  positionAttributeLocation: number,
-  texCAttributeLocation: number,
+  filterPipeline: Pipeline,
   vertexCount: number,
-  frameBufferTextureId: WebGLTexture,
   userInput?: UserInput
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
-
-  gl.useProgram(pipeline.programId);
 
   let transformationMatrix = mat4.create();
 
@@ -642,6 +649,47 @@ function render(
     }
   }
 
+  // set the viewport and clear the framebuffer
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  renderPipeline(gl, pipeline, transformationMatrix, vertexCount);
+  // ^ This rendered to the framebuffer referenced by `frameBufferId`.
+  // That framebuffer is storing the color values in the texture
+  // referenced by `frameBufferTextureId`. Now we can bind the default
+  // framebuffer (the screen), bind the `frameBufferTextureId` texture,
+  // and re-render the scene to view the results.
+
+  // gl.bindFramebuffer(
+  //   gl.FRAMEBUFFER,
+  //   // reset to the default one which is just to draw on screen
+  //   null
+  // );
+
+  // // set the viewport and clear the framebuffer
+  // gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+  // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // // Bind the texture made from the previous render
+  // gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
+  // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+
+  // Unbind things
+  gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+  // stop manipulating our program
+  gl.useProgram(null);
+}
+
+function renderPipeline(
+  gl: WebGLRenderingContext,
+  pipeline: Pipeline,
+  transformationMatrix: mat4,
+  vertexCount: number
+) {
+  gl.useProgram(pipeline.programId);
+
   // set uniforms
   gl.uniformMatrix4fv(
     gl.getUniformLocation(
@@ -670,10 +718,10 @@ function render(
   // bind buffers here
   gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);
 
-  gl.enableVertexAttribArray(positionAttributeLocation);
+  gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
 
   gl.vertexAttribPointer(
-    positionAttributeLocation,
+    pipeline.positionAttributeLocation,
     VECTOR_3_SIZE,
     gl.FLOAT,
     // no idea what that is :D
@@ -682,10 +730,10 @@ function render(
     0
   );
 
-  gl.enableVertexAttribArray(texCAttributeLocation);
+  gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
 
   gl.vertexAttribPointer(
-    texCAttributeLocation,
+    pipeline.texCAttributeLocation,
     VECTOR_2_SIZE,
     gl.FLOAT,
     // no idea what that is :D
@@ -695,12 +743,6 @@ function render(
     vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
   );
 
-  // gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
-
-  // set the viewport and clear the framebuffer
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
   // gl.POINTS
   // gl.LINES
   // gl.LINE_STRIP
@@ -709,30 +751,4 @@ function render(
   // gl.TRIANGLE_FAN
   // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
-  // ^ This rendered to the framebuffer referenced by `frameBufferId`.
-  // That framebuffer is storing the color values in the texture
-  // referenced by `frameBufferTextureId`. Now we can bind the default
-  // framebuffer (the screen), bind the `frameBufferTextureId` texture,
-  // and re-render the scene to view the results.
-
-  // gl.bindFramebuffer(
-  //   gl.FRAMEBUFFER,
-  //   // reset to the default one which is just to draw on screen
-  //   null
-  // );
-
-  // // set the viewport and clear the framebuffer
-  // gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-  // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  // // Bind the texture made from the previous render
-  // gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-  // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
-
-  // Unbind things
-  gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-  // stop manipulating our program
-  gl.useProgram(null);
 }
