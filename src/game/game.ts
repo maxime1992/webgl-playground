@@ -649,6 +649,8 @@ function render(
     }
   }
 
+  gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
+
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -660,26 +662,17 @@ function render(
   // framebuffer (the screen), bind the `frameBufferTextureId` texture,
   // and re-render the scene to view the results.
 
-  // gl.bindFramebuffer(
-  //   gl.FRAMEBUFFER,
-  //   // reset to the default one which is just to draw on screen
-  //   null
-  // );
+  gl.bindFramebuffer(
+    gl.FRAMEBUFFER,
+    // reset to the default one which is just to draw on screen
+    null
+  );
 
-  // // set the viewport and clear the framebuffer
-  // gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-  // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  // set the viewport and clear the framebuffer
+  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  // // Bind the texture made from the previous render
-  // gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-  // gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
-
-  // Unbind things
-  gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-  // stop manipulating our program
-  gl.useProgram(null);
+  renderPipeline(gl, filterPipeline, mat4.create(), vertexCount);
 }
 
 function renderPipeline(
