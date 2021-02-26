@@ -12,9 +12,9 @@ import {
   tap,
 } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
-import { filterFrag } from './filter.frag';
-import { frag } from './shader.frag';
-import { vertex } from './shader.vertex';
+import filterFrag from './edge-filter.frag';
+import frag from './shader.frag';
+import vertex from './shader.vert';
 
 interface UserInput {
   initialMouseClipSpace: vec2;
@@ -672,14 +672,21 @@ function render(
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  renderPipeline(gl, filterPipeline, mat4.create(), vertexCount);
+  renderPipeline(
+    gl, 
+    filterPipeline, 
+    mat4.create(), 
+    vertexCount, 
+    vec2.fromValues(canvas.width, canvas.height)
+  );
 }
 
 function renderPipeline(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   transformationMatrix: mat4,
-  vertexCount: number
+  vertexCount: number,
+  screenSize: vec2 | null = null
 ) {
   gl.useProgram(pipeline.programId);
 
@@ -707,6 +714,16 @@ function renderPipeline(
     ),
     0
   );
+
+  if (screenSize) {
+    gl.uniform2fv(
+    gl.getUniformLocation(
+      pipeline.programId,
+      // name of the variable on the shader side
+      `screenSize`
+    ),
+    screenSize);
+  }
 
   // bind buffers here
   gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);

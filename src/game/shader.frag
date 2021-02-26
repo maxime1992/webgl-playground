@@ -1,4 +1,3 @@
-export const frag = `
 precision highp float;
 precision highp int;
 
@@ -13,4 +12,3 @@ void main() {
   gl_FragColor = textureRgba;
   // gl_FragColor = vec4(texCoor, 1, 1.0);
 }
-`;
