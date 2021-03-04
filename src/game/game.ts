@@ -1,7 +1,7 @@
 // vertex: run 1 time per vertex (points in the shape)
 // fragment: run 1 time per pixel
 
-import { mat4, vec2, vec3 } from 'gl-matrix';
+import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, merge, Observable } from 'rxjs';
 import {
   map,
@@ -593,6 +593,23 @@ function render(
       );
     }
   }
+
+  const viewMatrix = mat4.lookAt(
+    mat4.create(),
+    [1, 1, 1],
+    [0, 0, 0],
+    [0, 1, 0]
+  );
+  mat4.multiply(transformationMatrix, viewMatrix, transformationMatrix);
+
+  const projectionMatrix = mat4.perspective(
+    mat4.create(),
+    glMatrix.toRadian(60.0),
+    canvas.width / canvas.height,
+    0.1,
+    100.0
+  );
+  mat4.multiply(transformationMatrix, projectionMatrix, transformationMatrix);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
 
