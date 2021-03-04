@@ -13,8 +13,10 @@ import {
 } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
 import filterFrag from './edge-filter.frag';
+import { Program } from './program';
+import { Shader } from './shader';
 import frag from './shader.frag';
-import vertex from './shader.vert';
+import vert from './shader.vert';
 
 interface UserInput {
   initialMouseClipSpace: vec2;
@@ -28,7 +30,7 @@ interface UserInput {
 
 // often called "pipeline" or "render pass"
 interface Pipeline {
-  programId: WebGLProgram;
+  program: Program;
   bufferId: WebGLBuffer;
   textureId: WebGLTexture;
   frameBufferId: WebGLFramebuffer | null;
@@ -39,75 +41,6 @@ interface Pipeline {
 // will do later on
 // function renderPassToFrameBuffer(pipeline: Pipeline):void {
 // }
-
-interface ShaderData {
-  source: string;
-  // type can be either
-  // gl.VERTEX_SHADER
-  // gl.FRAGMENT_SHADER
-  type: number;
-}
-
-function createShader(
-  gl: WebGLRenderingContext,
-  shaderData: ShaderData
-): WebGLShader {
-  // Create the WebGL shader id. This does nothing
-  // until you use the ID in other functions
-  const webGlShaderId = gl.createShader(shaderData.type);
-
-  if (!webGlShaderId) {
-    throw new Error(`Couldn't create the vertex shader`);
-  }
-
-  // Tells WebGL what shader code is (the GLSL)
-  gl.shaderSource(webGlShaderId, shaderData.source);
-
-  // This attempts to compiler the shader code
-  gl.compileShader(webGlShaderId);
-
-  // This queries for any errors in the compilation process.
-  if (!gl.getShaderParameter(webGlShaderId, gl.COMPILE_STATUS)) {
-    throw new Error(
-      `Couldn't compile the shader. ${gl.getShaderInfoLog(webGlShaderId)}`
-    );
-  }
-
-  return webGlShaderId;
-}
-
-function createProgram(
-  gl: WebGLRenderingContext,
-  vertexData: ShaderData,
-  fragmentData: ShaderData
-): WebGLProgram {
-  const webGlVertexShaderId = createShader(gl, vertexData);
-  const webGlFragShaderId = createShader(gl, fragmentData);
-
-  // create a program to link the shaders
-  const glProgramId = gl.createProgram();
-
-  if (!glProgramId) {
-    throw new Error(`Couldn't create program`);
-  }
-
-  gl.attachShader(glProgramId, webGlVertexShaderId);
-  gl.attachShader(glProgramId, webGlFragShaderId);
-
-  // linking of the attached shaders
-  gl.linkProgram(glProgramId);
-
-  if (!gl.getProgramParameter(glProgramId, gl.LINK_STATUS)) {
-    throw new Error(
-      `Couldn't link the attached shaders. ${gl.getProgramInfoLog(glProgramId)}`
-    );
-  }
-
-  gl.detachShader(glProgramId, webGlVertexShaderId);
-  gl.detachShader(glProgramId, webGlFragShaderId);
-
-  return glProgramId;
-}
 
 function createBuffer(
   gl: WebGLRenderingContext,
@@ -305,11 +238,10 @@ export const startGame = () => {
   // set default value
   gl.clearColor(0, 0, 0, 1);
 
-  const glProgramId = createProgram(
-    gl,
-    { type: gl.VERTEX_SHADER, source: vertex },
-    { type: gl.FRAGMENT_SHADER, source: frag }
-  );
+  const vertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: vert });
+  const fragment = new Shader(gl, { type: gl.FRAGMENT_SHADER, source: frag });
+
+  const program = new Program(gl, vertex, fragment);
 
   /*
    * Create vertex buffer
@@ -408,25 +340,34 @@ export const startGame = () => {
   );
 
   const pipeline: Pipeline = {
-    programId: glProgramId,
+    program: program,
     bufferId: vertexBufferId,
     textureId: textureId,
     frameBufferId: frameBufferId,
     positionAttributeLocation: getAttributeLocation(
       gl,
-      glProgramId,
+      program.getProgramId(),
       'position'
     ),
-    texCAttributeLocation: getAttributeLocation(gl, glProgramId, 'texC'),
+    texCAttributeLocation: getAttributeLocation(
+      gl,
+      program.getProgramId(),
+      'texC'
+    ),
   };
 
-  const filterProgramId = createProgram(
+  const filterFragment = new Shader(gl, {
+    type: gl.FRAGMENT_SHADER,
+    source: filterFrag,
+  });
+
+  const filterProgram = new Program(
     gl,
     // we use the same vertex as the first one for now
     // as we don't do anything special on the vertex level
     // and for the transformation we can just pass the identity matrix
-    { type: gl.VERTEX_SHADER, source: vertex },
-    { type: gl.FRAGMENT_SHADER, source: filterFrag }
+    vertex,
+    filterFragment
   );
 
   const filterPositions = new Float32Array([
@@ -480,16 +421,20 @@ export const startGame = () => {
   const filterVertexBufferId = createBuffer(gl, filterVboData);
 
   const filterPipeline: Pipeline = {
-    programId: filterProgramId,
+    program: filterProgram,
     bufferId: filterVertexBufferId,
     textureId: frameBufferTextureId,
     frameBufferId: null,
     positionAttributeLocation: getAttributeLocation(
       gl,
-      filterProgramId,
+      filterProgram.getProgramId(),
       'position'
     ),
-    texCAttributeLocation: getAttributeLocation(gl, filterProgramId, 'texC'),
+    texCAttributeLocation: getAttributeLocation(
+      gl,
+      filterProgram.getProgramId(),
+      'texC'
+    ),
   };
 
   /*
@@ -673,10 +618,10 @@ function render(
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
   renderPipeline(
-    gl, 
-    filterPipeline, 
-    mat4.create(), 
-    vertexCount, 
+    gl,
+    filterPipeline,
+    mat4.create(),
+    vertexCount,
     vec2.fromValues(canvas.width, canvas.height)
   );
 }
@@ -688,77 +633,61 @@ function renderPipeline(
   vertexCount: number,
   screenSize: vec2 | null = null
 ) {
-  gl.useProgram(pipeline.programId);
+  pipeline.program.use(() => {
+    pipeline.program.setMatrixUniform(transformationMatrix, `transformation`);
 
-  // set uniforms
-  gl.uniformMatrix4fv(
-    gl.getUniformLocation(
-      pipeline.programId,
-      // name of the variable on the shader side
-      `transformation`
-    ),
-    // always false for now
-    false,
-    transformationMatrix
-  );
+    // set texture
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, pipeline.textureId);
 
-  // set texture
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, pipeline.textureId);
+    gl.uniform1i(
+      gl.getUniformLocation(
+        pipeline.program.getProgramId(),
+        // name of the variable on the shader side
+        `tex`
+      ),
+      0
+    );
 
-  gl.uniform1i(
-    gl.getUniformLocation(
-      pipeline.programId,
-      // name of the variable on the shader side
-      `tex`
-    ),
-    0
-  );
+    if (screenSize) {
+      pipeline.program.setFloatUniform(screenSize, `screenSize`);
+    }
 
-  if (screenSize) {
-    gl.uniform2fv(
-    gl.getUniformLocation(
-      pipeline.programId,
-      // name of the variable on the shader side
-      `screenSize`
-    ),
-    screenSize);
-  }
+    // bind buffers here
+    gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);
 
-  // bind buffers here
-  gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);
+    gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
 
-  gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
+    gl.vertexAttribPointer(
+      pipeline.positionAttributeLocation,
+      VECTOR_3_SIZE,
+      gl.FLOAT,
+      // no idea what that is :D
+      false,
+      0,
+      0
+    );
 
-  gl.vertexAttribPointer(
-    pipeline.positionAttributeLocation,
-    VECTOR_3_SIZE,
-    gl.FLOAT,
-    // no idea what that is :D
-    false,
-    0,
-    0
-  );
+    gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
 
-  gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
+    gl.vertexAttribPointer(
+      pipeline.texCAttributeLocation,
+      VECTOR_2_SIZE,
+      gl.FLOAT,
+      // no idea what that is :D
+      false,
+      0,
+      // offset in bytes where the texture coordinates starts
+      vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+    );
 
-  gl.vertexAttribPointer(
-    pipeline.texCAttributeLocation,
-    VECTOR_2_SIZE,
-    gl.FLOAT,
-    // no idea what that is :D
-    false,
-    0,
-    // offset in bytes where the texture coordinates starts
-    vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
-  );
-
-  // gl.POINTS
-  // gl.LINES
-  // gl.LINE_STRIP
-  // gl.TRIANGLES
-  // gl.TRIANGLE_STRIP
-  // gl.TRIANGLE_FAN
-  // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+    // gl.POINTS
+    // gl.LINES
+    // gl.LINE_STRIP
+    // gl.TRIANGLES
+    // gl.TRIANGLE_STRIP
+    // gl.TRIANGLE_FAN
+    // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+  });
 }
