@@ -1,5 +1,6 @@
 import { mat2, mat3, mat4, vec2, vec3, vec4 } from 'gl-matrix';
 import { Shader } from './shader';
+import { Texture } from './texture';
 import {
   getSafe,
   isArrayBuffer,
@@ -151,25 +152,25 @@ export class Program {
     return true;
   }
 
-  //   public setTextureUniform(
-  //     texture: GLTexture,
-  //     name: string,
-  //     activeTex: number = 0
-  //   ): boolean {
-  //     const gl: WebGLRenderingContext = this.gl;
-  //     const loc: WebGLUniformLocation | null = gl.getUniformLocation(
-  //       this.glProgramId,
-  //       name
-  //     );
+    public setTextureUniform(
+      texture: Texture,
+      name: string,
+      activeTex: number = 0
+    ): boolean {
+      const gl: WebGLRenderingContext = this.gl;
+      const loc: WebGLUniformLocation | null = gl.getUniformLocation(
+        this.glProgramId,
+        name
+      );
 
-  //     if (!loc) {
-  //       console.error('Uniform location not found for: ' + name);
-  //       return false;
-  //     }
+      if (!loc) {
+        console.error('Uniform location not found for: ' + name);
+        return false;
+      }
 
-  //     gl.activeTexture(gl.TEXTURE0 + activeTex);
-  //     gl.uniform1i(loc, activeTex);
-  //     texture.bind();
-  //     return true;
-  //   }
+      gl.activeTexture(gl.TEXTURE0 + activeTex);
+      gl.uniform1i(loc, activeTex);
+      texture.bind();
+      return true;
+    }
 }

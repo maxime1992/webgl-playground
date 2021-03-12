@@ -15,6 +15,7 @@ import forestPicture from '../assets/forest-low-quality.jpg';
 import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
+import { Texture } from './texture';
 import frag from './shader.frag';
 import vert from './shader.vert';
 
@@ -32,7 +33,7 @@ interface UserInput {
 interface Pipeline {
   program: Program;
   bufferId: WebGLBuffer;
-  textureId: WebGLTexture;
+  texture: Texture;
   frameBufferId: WebGLFramebuffer | null;
   positionAttributeLocation: number;
   texCAttributeLocation: number;
@@ -60,69 +61,6 @@ function createBuffer(
   return bufferId;
 }
 
-function createTexture(
-  gl: WebGLRenderingContext,
-  width: number,
-  height: number,
-  data: ArrayBufferView | null
-): WebGLTexture {
-  const frameBufferTextureId = gl.createTexture();
-
-  if (!frameBufferTextureId) {
-    throw new Error(`Couldn't create a texture`);
-  }
-
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    width,
-    height,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    data
-  );
-  // set the filtering so we don't need mips
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  return frameBufferTextureId;
-}
-
-function updateTexture(
-  gl: WebGLRenderingContext,
-  textureId: WebGLTexture,
-  image: HTMLImageElement
-): void {
-  // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
-
-  gl.bindTexture(gl.TEXTURE_2D, textureId);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-
-  // WebGL1 has different requirements for power of 2 images
-  // vs non power of 2 images so check if the image is a
-  // power of 2 in both dimensions.
-  if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
-    // Yes, it's a power of 2. Generate mips.
-    gl.generateMipmap(gl.TEXTURE_2D);
-  } else {
-    // No, it's not a power of 2. Turn off mips and set
-    // wrapping to clamp to edge
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(
-      gl.TEXTURE_2D,
-      gl.TEXTURE_MIN_FILTER,
-      // other option `gl.NEAREST`
-      gl.LINEAR
-    );
-  }
-
-  gl.bindTexture(gl.TEXTURE_2D, null);
-}
 
 function createFrameBuffer(
   gl: WebGLRenderingContext,
@@ -306,13 +244,13 @@ export const startGame = () => {
    * Textures
    */
 
-  const textureId = createTexture(gl, 1, 1, null);
+  const texture = new Texture(gl, 1, 1);
 
   const image$ = new Observable((observer) => {
     const image = new Image();
 
     image.onload = () => {
-      updateTexture(gl, textureId, image);
+      texture.updateTexture(  image);
 
       observer.next();
       observer.complete();
@@ -321,11 +259,10 @@ export const startGame = () => {
     image.src = forestPicture;
   });
 
-  const frameBufferTextureId = createTexture(
+  const frameBufferTexture = new Texture(
     gl,
     canvas.clientWidth,
     canvas.clientHeight,
-    null
   );
 
   // the idea of the frame buffer is that we can render onto
@@ -336,14 +273,14 @@ export const startGame = () => {
     gl,
     canvas.clientWidth,
     canvas.clientHeight,
-    frameBufferTextureId
+    frameBufferTexture.getTextureId()
   );
 
   const pipeline: Pipeline = {
-    program: program,
+    program,
     bufferId: vertexBufferId,
-    textureId: textureId,
-    frameBufferId: frameBufferId,
+    texture,
+    frameBufferId,
     positionAttributeLocation: getAttributeLocation(
       gl,
       program.getProgramId(),
@@ -423,7 +360,7 @@ export const startGame = () => {
   const filterPipeline: Pipeline = {
     program: filterProgram,
     bufferId: filterVertexBufferId,
-    textureId: frameBufferTextureId,
+    texture: frameBufferTexture,
     frameBufferId: null,
     positionAttributeLocation: getAttributeLocation(
       gl,
@@ -525,10 +462,6 @@ export const startGame = () => {
     .subscribe();
 };
 
-function isPowerOf2(value) {
-  return (value & (value - 1)) == 0;
-}
-
 function render(
   canvas: HTMLCanvasElement,
   gl: WebGLRenderingContext,
@@ -594,22 +527,22 @@ function render(
     }
   }
 
-  const viewMatrix = mat4.lookAt(
-    mat4.create(),
-    [1, 1, 1],
-    [0, 0, 0],
-    [0, 1, 0]
-  );
-  mat4.multiply(transformationMatrix, viewMatrix, transformationMatrix);
+  // const viewMatrix = mat4.lookAt(
+  //   mat4.create(),
+  //   [1, 1, 1],
+  //   [0, 0, 0],
+  //   [0, 1, 0]
+  // );
+  // mat4.multiply(transformationMatrix, viewMatrix, transformationMatrix);
 
-  const projectionMatrix = mat4.perspective(
-    mat4.create(),
-    glMatrix.toRadian(60.0),
-    canvas.width / canvas.height,
-    0.1,
-    100.0
-  );
-  mat4.multiply(transformationMatrix, projectionMatrix, transformationMatrix);
+  // const projectionMatrix = mat4.perspective(
+  //   mat4.create(),
+  //   glMatrix.toRadian(60.0),
+  //   canvas.width / canvas.height,
+  //   0.1,
+  //   100.0
+  // );
+  // mat4.multiply(transformationMatrix, projectionMatrix, transformationMatrix);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
 
@@ -653,18 +586,7 @@ function renderPipeline(
   pipeline.program.use(() => {
     pipeline.program.setMatrixUniform(transformationMatrix, `transformation`);
 
-    // set texture
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, pipeline.textureId);
-
-    gl.uniform1i(
-      gl.getUniformLocation(
-        pipeline.program.getProgramId(),
-        // name of the variable on the shader side
-        `tex`
-      ),
-      0
-    );
+    pipeline.program.setTextureUniform(pipeline.texture, `tex`, )
 
     if (screenSize) {
       pipeline.program.setFloatUniform(screenSize, `screenSize`);
