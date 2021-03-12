@@ -16,11 +16,7 @@ export class Framebuffer {
     // simply to define the depth attachment that we don't really use
     // and pass it to the frame buffer which requires it but we're only
     // interested in the color attachment (webgl texture) of the framebuffer
-    const renderBufferId = gl.createRenderbuffer();
-
-    if (!renderBufferId) {
-      throw new Error(`Couldn't create a render buffer`);
-    }
+    const renderBufferId = getSafe(gl.createRenderbuffer(), `Couldn't create a render buffer`);
 
     gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
