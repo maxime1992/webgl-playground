@@ -17,6 +17,7 @@ import { Program } from './program';
 import { Shader } from './shader';
 import { Texture } from './texture';
 import { Buffer } from './buffer';
+import { Framebuffer } from './framebuffer';
 import frag from './shader.frag';
 import vert from './shader.vert';
 
@@ -35,7 +36,7 @@ interface Pipeline {
   program: Program;
   buffer: Buffer;
   texture: Texture;
-  frameBufferId: WebGLFramebuffer | null;
+  framebuffer: Framebuffer | null;
   positionAttributeLocation: number;
   texCAttributeLocation: number;
 }
@@ -44,76 +45,6 @@ interface Pipeline {
 // function renderPassToFrameBuffer(pipeline: Pipeline):void {
 // }
 
-
-function createFrameBuffer(
-  gl: WebGLRenderingContext,
-  width: number,
-  height: number,
-  framebufferTexture: Texture
-) {
-  const frameBufferId = gl.createFramebuffer();
-
-  if (!frameBufferId) {
-    throw new Error(`Couldn't create a framebuffer`);
-  }
-
-  // simply to define the depth attachment that we don't really use
-  // and pass it to the frame buffer which requires it but we're only
-  // interested in the color attachment (webgl texture) of the framebuffer
-  const renderBufferId = gl.createRenderbuffer();
-
-  if (!renderBufferId) {
-    throw new Error(`Couldn't create a render buffer`);
-  }
-
-  gl.bindRenderbuffer(gl.RENDERBUFFER, renderBufferId);
-  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
-
-  framebufferTexture.scopeBind(()=>{
-    gl.framebufferRenderbuffer(
-      gl.FRAMEBUFFER,
-      gl.DEPTH_ATTACHMENT,
-      gl.RENDERBUFFER,
-      renderBufferId
-    );
-    gl.framebufferTexture2D(
-      gl.FRAMEBUFFER,
-      gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D,
-      framebufferTexture.getTextureId(),
-      0
-    );
-
-    const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    switch (framebufferStatus) {
-      case gl.FRAMEBUFFER_COMPLETE:
-        break;
-      case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-        throw new Error(
-          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
-        );
-      case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-        throw new Error(
-          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
-        );
-      case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-        throw new Error(
-          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
-        );
-      case gl.FRAMEBUFFER_UNSUPPORTED:
-        throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
-      default:
-        throw new Error(`Incomplete framebuffer: Unknown status`);
-    }
-
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  });
-
-  return frameBufferId;
-}
 
 function getAttributeLocation(
   gl: WebGLRenderingContext,
@@ -252,7 +183,7 @@ export const startGame = () => {
   // it instead of the screen but it lets us pass that render
   // buffer to other transformation pipelines if we need to
   // (for example to blur a picture)
-  const frameBufferId = createFrameBuffer(
+  const frameBuffer = new Framebuffer(
     gl,
     canvas.clientWidth,
     canvas.clientHeight,
@@ -263,7 +194,7 @@ export const startGame = () => {
     program,
     buffer: vertexBuffer,
     texture,
-    frameBufferId,
+    framebuffer: frameBuffer,
     positionAttributeLocation: getAttributeLocation(
       gl,
       program.getProgramId(),
@@ -344,7 +275,7 @@ export const startGame = () => {
     program: filterProgram,
     buffer: filterVertexBuffer,
     texture: frameBufferTexture,
-    frameBufferId: null,
+    framebuffer: null,
     positionAttributeLocation: getAttributeLocation(
       gl,
       filterProgram.getProgramId(),
@@ -527,24 +458,18 @@ function render(
   // );
   // mat4.multiply(transformationMatrix, projectionMatrix, transformationMatrix);
 
-  gl.bindFramebuffer(gl.FRAMEBUFFER, pipeline.frameBufferId);
-
-  // set the viewport and clear the framebuffer
-  gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-  renderPipeline(gl, pipeline, transformationMatrix, vertexCount);
-  // ^ This rendered to the framebuffer referenced by `frameBufferId`.
-  // That framebuffer is storing the color values in the texture
-  // referenced by `frameBufferTextureId`. Now we can bind the default
-  // framebuffer (the screen), bind the `frameBufferTextureId` texture,
-  // and re-render the scene to view the results.
-
-  gl.bindFramebuffer(
-    gl.FRAMEBUFFER,
-    // reset to the default one which is just to draw on screen
-    null
-  );
+  pipeline.framebuffer?.scopeBind(() => {
+    // set the viewport and clear the framebuffer
+    gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  
+    renderPipeline(gl, pipeline, transformationMatrix, vertexCount);
+    // ^ This rendered to the framebuffer referenced by `frameBufferId`.
+    // That framebuffer is storing the color values in the texture
+    // referenced by `frameBufferTextureId`. Now we can bind the default
+    // framebuffer (the screen), bind the `frameBufferTextureId` texture,
+    // and re-render the scene to view the results.
+  })  
 
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
