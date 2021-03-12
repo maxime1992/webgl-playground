@@ -39,6 +39,7 @@ interface Pipeline {
   framebuffer: Framebuffer | null;
   positionAttributeLocation: number;
   texCAttributeLocation: number;
+  vertexCount: number;
 }
 
 // will do later on
@@ -205,6 +206,7 @@ export const startGame = () => {
       program.getProgramId(),
       'texC'
     ),
+    vertexCount
   };
 
   const filterFragment = new Shader(gl, {
@@ -286,6 +288,7 @@ export const startGame = () => {
       filterProgram.getProgramId(),
       'texC'
     ),
+    vertexCount
   };
 
   /*
@@ -370,7 +373,7 @@ export const startGame = () => {
     .pipe(
       startWith(undefined),
       tap((userInput) => {
-        render(canvas, gl, pipeline, filterPipeline, vertexCount, userInput);
+        render(canvas, gl, pipeline, filterPipeline, userInput);
       })
     )
     .subscribe();
@@ -381,7 +384,6 @@ function render(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   filterPipeline: Pipeline,
-  vertexCount: number,
   userInput?: UserInput
 ) {
   canvas.width = canvas.clientWidth;
@@ -463,7 +465,7 @@ function render(
     gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-    renderPipeline(gl, pipeline, transformationMatrix, vertexCount);
+    renderPipeline(gl, pipeline, transformationMatrix);
     // ^ This rendered to the framebuffer referenced by `frameBufferId`.
     // That framebuffer is storing the color values in the texture
     // referenced by `frameBufferTextureId`. Now we can bind the default
@@ -479,7 +481,6 @@ function render(
     gl,
     filterPipeline,
     mat4.create(),
-    vertexCount,
     vec2.fromValues(canvas.width, canvas.height)
   );
 }
@@ -488,7 +489,6 @@ function renderPipeline(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   transformationMatrix: mat4,
-  vertexCount: number,
   screenSize: vec2 | null = null
 ) {
   pipeline.program.use(() => {
@@ -524,7 +524,7 @@ function renderPipeline(
         false,
         0,
         // offset in bytes where the texture coordinates starts
-        vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+        pipeline.vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
       );
   
       // gl.POINTS
@@ -534,7 +534,7 @@ function renderPipeline(
       // gl.TRIANGLE_STRIP
       // gl.TRIANGLE_FAN
       // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, pipeline.vertexCount);
     })
   });
 }
