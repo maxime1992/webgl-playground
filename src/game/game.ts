@@ -16,6 +16,7 @@ import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
 import { Texture } from './texture';
+import { Buffer } from './buffer';
 import frag from './shader.frag';
 import vert from './shader.vert';
 
@@ -32,7 +33,7 @@ interface UserInput {
 // often called "pipeline" or "render pass"
 interface Pipeline {
   program: Program;
-  bufferId: WebGLBuffer;
+  buffer: Buffer;
   texture: Texture;
   frameBufferId: WebGLFramebuffer | null;
   positionAttributeLocation: number;
@@ -43,30 +44,12 @@ interface Pipeline {
 // function renderPassToFrameBuffer(pipeline: Pipeline):void {
 // }
 
-function createBuffer(
-  gl: WebGLRenderingContext,
-  vboData: Float32Array
-): WebGLBuffer {
-  // create buffer on the GPU
-  const bufferId = gl.createBuffer();
-
-  if (!bufferId) {
-    throw new Error(`Couldn't create the buffer.`);
-  }
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
-  gl.bufferData(gl.ARRAY_BUFFER, vboData, gl.STATIC_DRAW);
-  gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-  return bufferId;
-}
-
 
 function createFrameBuffer(
   gl: WebGLRenderingContext,
   width: number,
   height: number,
-  frameBufferTextureId: WebGLTexture
+  framebufferTexture: Texture
 ) {
   const frameBufferId = gl.createFramebuffer();
 
@@ -87,47 +70,47 @@ function createFrameBuffer(
   gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBufferId);
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTextureId);
 
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER,
-    gl.DEPTH_ATTACHMENT,
-    gl.RENDERBUFFER,
-    renderBufferId
-  );
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    frameBufferTextureId,
-    0
-  );
+  framebufferTexture.scopeBind(()=>{
+    gl.framebufferRenderbuffer(
+      gl.FRAMEBUFFER,
+      gl.DEPTH_ATTACHMENT,
+      gl.RENDERBUFFER,
+      renderBufferId
+    );
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      framebufferTexture.getTextureId(),
+      0
+    );
 
-  const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  switch (framebufferStatus) {
-    case gl.FRAMEBUFFER_COMPLETE:
-      break;
-    case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
-      );
-    case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-      throw new Error(
-        `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
-      );
-    case gl.FRAMEBUFFER_UNSUPPORTED:
-      throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
-    default:
-      throw new Error(`Incomplete framebuffer: Unknown status`);
-  }
+    const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    switch (framebufferStatus) {
+      case gl.FRAMEBUFFER_COMPLETE:
+        break;
+      case gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        throw new Error(
+          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_ATTACHMENT`
+        );
+      case gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        throw new Error(
+          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT`
+        );
+      case gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
+        throw new Error(
+          `Incomplete framebuffer: FRAMEBUFFER_INCOMPLETE_DIMENSIONS`
+        );
+      case gl.FRAMEBUFFER_UNSUPPORTED:
+        throw new Error(`Incomplete framebuffer: FRAMEBUFFER_UNSUPPORTED`);
+      default:
+        throw new Error(`Incomplete framebuffer: Unknown status`);
+    }
 
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  });
 
   return frameBufferId;
 }
@@ -236,7 +219,7 @@ export const startGame = () => {
 
   const vboData = new Float32Array([...positions, ...textureCoordinates]);
 
-  const vertexBufferId = createBuffer(gl, vboData);
+  const vertexBuffer = new Buffer(gl, vboData);
 
   const vertexCount = positions.length / VECTOR_3_SIZE;
 
@@ -273,12 +256,12 @@ export const startGame = () => {
     gl,
     canvas.clientWidth,
     canvas.clientHeight,
-    frameBufferTexture.getTextureId()
+    frameBufferTexture
   );
 
   const pipeline: Pipeline = {
     program,
-    bufferId: vertexBufferId,
+    buffer: vertexBuffer,
     texture,
     frameBufferId,
     positionAttributeLocation: getAttributeLocation(
@@ -355,11 +338,11 @@ export const startGame = () => {
     ...filterTextureCoordinates,
   ]);
 
-  const filterVertexBufferId = createBuffer(gl, filterVboData);
+  const filterVertexBuffer = new Buffer(gl, filterVboData);
 
   const filterPipeline: Pipeline = {
     program: filterProgram,
-    bufferId: filterVertexBufferId,
+    buffer: filterVertexBuffer,
     texture: frameBufferTexture,
     frameBufferId: null,
     positionAttributeLocation: getAttributeLocation(
@@ -593,40 +576,40 @@ function renderPipeline(
     }
 
     // bind buffers here
-    gl.bindBuffer(gl.ARRAY_BUFFER, pipeline.bufferId);
-
-    gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
-
-    gl.vertexAttribPointer(
-      pipeline.positionAttributeLocation,
-      VECTOR_3_SIZE,
-      gl.FLOAT,
-      // no idea what that is :D
-      false,
-      0,
-      0
-    );
-
-    gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
-
-    gl.vertexAttribPointer(
-      pipeline.texCAttributeLocation,
-      VECTOR_2_SIZE,
-      gl.FLOAT,
-      // no idea what that is :D
-      false,
-      0,
-      // offset in bytes where the texture coordinates starts
-      vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
-    );
-
-    // gl.POINTS
-    // gl.LINES
-    // gl.LINE_STRIP
-    // gl.TRIANGLES
-    // gl.TRIANGLE_STRIP
-    // gl.TRIANGLE_FAN
-    // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+    pipeline.buffer.scopeBind(() => {
+      gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
+  
+      gl.vertexAttribPointer(
+        pipeline.positionAttributeLocation,
+        VECTOR_3_SIZE,
+        gl.FLOAT,
+        // no idea what that is :D
+        false,
+        0,
+        0
+      );
+  
+      gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
+  
+      gl.vertexAttribPointer(
+        pipeline.texCAttributeLocation,
+        VECTOR_2_SIZE,
+        gl.FLOAT,
+        // no idea what that is :D
+        false,
+        0,
+        // offset in bytes where the texture coordinates starts
+        vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+      );
+  
+      // gl.POINTS
+      // gl.LINES
+      // gl.LINE_STRIP
+      // gl.TRIANGLES
+      // gl.TRIANGLE_STRIP
+      // gl.TRIANGLE_FAN
+      // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, vertexCount);
+    })
   });
 }
