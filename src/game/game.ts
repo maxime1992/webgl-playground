@@ -170,7 +170,7 @@ export const startGame = () => {
     frameBufferTexture
   );
 
- const vertexArray = new VertexArray(gl, program, [
+ const vertexArray = new VertexArray(gl, program, vertexBuffer, [
     {
       name: 'position',
       size: VECTOR_3_SIZE,
@@ -258,7 +258,7 @@ export const startGame = () => {
 
   const filterVertexBuffer = new Buffer(gl, filterVboData);
 
-  const filterVertexArray = new VertexArray(gl, filterProgram, [
+  const filterVertexArray = new VertexArray(gl, filterProgram, filterVertexBuffer, [
     {
       name: 'position',
       size: VECTOR_3_SIZE,
@@ -491,18 +491,6 @@ function renderPipeline(
       pipeline.program.setFloatUniform(screenSize, `screenSize`);
     }
 
-    // bind buffers here
-    pipeline.buffer.scopeBind(() => {
-      pipeline.vertexArray.prepareForRender();
-  
-      // gl.POINTS
-      // gl.LINES
-      // gl.LINE_STRIP
-      // gl.TRIANGLES
-      // gl.TRIANGLE_STRIP
-      // gl.TRIANGLE_FAN
-      // https://www.3dgep.com/wp-content/uploads/2011/02/OpenGL-Primitives.png
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, pipeline.vertexCount);
-    })
+    pipeline.vertexArray.render(gl.TRIANGLE_STRIP, 0, pipeline.vertexCount);
   });
 }

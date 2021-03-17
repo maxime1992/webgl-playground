@@ -1,5 +1,5 @@
-import { getSafe, ShaderData } from './utils';
 import { Program } from './program';
+import { Buffer } from './buffer';
 
 export interface VAOElement {
     name: string;
@@ -19,7 +19,7 @@ interface VertexArrayElement {
 export class VertexArray {
   private vaoElements : VertexArrayElement[]
 
-  constructor(private gl: WebGLRenderingContext, program: Program, vaoElements:  VAOElement[]) {
+  constructor(private gl: WebGLRenderingContext, program: Program, private buffer: Buffer, vaoElements:  VAOElement[]) {
    this.vaoElements = vaoElements.map(vaoElement => {
       const { name, ...commonVaoElement } = vaoElement;
 
@@ -52,6 +52,13 @@ export class VertexArray {
         0, // TODO: pass in total stride in constructor
         vaoElement.offset
       );
+    })
+  }
+
+  public render(primitiveType: GLenum, start: number, vertexCount: number) {
+    this.buffer.scopeBind(() => {
+      this.prepareForRender();
+      this.gl.drawArrays(primitiveType, start, vertexCount);
     })
   }
 }
