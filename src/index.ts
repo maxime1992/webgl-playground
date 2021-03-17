@@ -1,4 +1,5 @@
 import { startGame } from './game/game';
+import { startGame2 } from './game/game2';
 
 declare const module;
 
@@ -11,5 +12,6 @@ if (module.hot) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  startGame();
+  // startGame();
+  startGame2();
 });
