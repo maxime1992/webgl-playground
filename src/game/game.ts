@@ -15,11 +15,13 @@ import forestPicture from '../assets/forest-low-quality.jpg';
 import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
+import { VertexArray } from './vertex-array';
 import { Texture } from './texture';
 import { Buffer } from './buffer';
 import { Framebuffer } from './framebuffer';
 import frag from './shader.frag';
 import vert from './shader.vert';
+import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 
 interface UserInput {
   initialMouseClipSpace: vec2;
@@ -35,38 +37,15 @@ interface UserInput {
 interface Pipeline {
   program: Program;
   buffer: Buffer;
+  vertexArray: VertexArray;
   texture: Texture;
   framebuffer: Framebuffer | null;
-  positionAttributeLocation: number;
-  texCAttributeLocation: number;
   vertexCount: number;
 }
 
 // will do later on
 // function renderPassToFrameBuffer(pipeline: Pipeline):void {
 // }
-
-
-function getAttributeLocation(
-  gl: WebGLRenderingContext,
-  glProgramId: WebGLProgram,
-  attributeName: string
-) {
-  // -1 if couldn't find attribute
-  const positionAttributeLocation = gl.getAttribLocation(
-    glProgramId,
-    attributeName
-  );
-
-  if (positionAttributeLocation < 0) {
-    throw new Error(`Failed to find attribute location for: 'position'`);
-  }
-  return positionAttributeLocation;
-}
-
-const VECTOR_3_SIZE = 3;
-const VECTOR_2_SIZE = 2;
-const NUM_BYTES_IN_FLOAT = 4;
 
 export const startGame = () => {
   /*
@@ -191,21 +170,27 @@ export const startGame = () => {
     frameBufferTexture
   );
 
+ const vertexArray = new VertexArray(gl, program, [
+    {
+      name: 'position',
+      size: VECTOR_3_SIZE,
+      type: gl.FLOAT,
+      offset: 0
+    },
+    {
+      name: 'texC',
+      size: VECTOR_2_SIZE,
+      type: gl.FLOAT,
+      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+    },
+  ])
+
   const pipeline: Pipeline = {
     program,
     buffer: vertexBuffer,
     texture,
     framebuffer: frameBuffer,
-    positionAttributeLocation: getAttributeLocation(
-      gl,
-      program.getProgramId(),
-      'position'
-    ),
-    texCAttributeLocation: getAttributeLocation(
-      gl,
-      program.getProgramId(),
-      'texC'
-    ),
+    vertexArray,
     vertexCount
   };
 
@@ -273,21 +258,27 @@ export const startGame = () => {
 
   const filterVertexBuffer = new Buffer(gl, filterVboData);
 
+  const filterVertexArray = new VertexArray(gl, filterProgram, [
+    {
+      name: 'position',
+      size: VECTOR_3_SIZE,
+      type: gl.FLOAT,
+      offset: 0
+    },
+    {
+      name: 'texC',
+      size: VECTOR_2_SIZE,
+      type: gl.FLOAT,
+      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+    },
+  ])
+  
   const filterPipeline: Pipeline = {
     program: filterProgram,
     buffer: filterVertexBuffer,
     texture: frameBufferTexture,
     framebuffer: null,
-    positionAttributeLocation: getAttributeLocation(
-      gl,
-      filterProgram.getProgramId(),
-      'position'
-    ),
-    texCAttributeLocation: getAttributeLocation(
-      gl,
-      filterProgram.getProgramId(),
-      'texC'
-    ),
+    vertexArray: filterVertexArray,
     vertexCount
   };
 
@@ -502,30 +493,7 @@ function renderPipeline(
 
     // bind buffers here
     pipeline.buffer.scopeBind(() => {
-      gl.enableVertexAttribArray(pipeline.positionAttributeLocation);
-  
-      gl.vertexAttribPointer(
-        pipeline.positionAttributeLocation,
-        VECTOR_3_SIZE,
-        gl.FLOAT,
-        // no idea what that is :D
-        false,
-        0,
-        0
-      );
-  
-      gl.enableVertexAttribArray(pipeline.texCAttributeLocation);
-  
-      gl.vertexAttribPointer(
-        pipeline.texCAttributeLocation,
-        VECTOR_2_SIZE,
-        gl.FLOAT,
-        // no idea what that is :D
-        false,
-        0,
-        // offset in bytes where the texture coordinates starts
-        pipeline.vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
-      );
+      pipeline.vertexArray.prepareForRender();
   
       // gl.POINTS
       // gl.LINES
