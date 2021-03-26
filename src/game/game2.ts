@@ -38,6 +38,7 @@ interface Pipeline {
   texture: Texture | null;
   framebuffer: Framebuffer | null;
   vertexCount: number;
+  primitiveType: GLenum;
 }
 
 // will do later on
@@ -66,6 +67,12 @@ export const startGame2 = () => {
 
   // set default value
   gl.clearColor(0, 0, 0, 1);
+  
+  // Render closer items on top of farther items
+  gl.enable(gl.DEPTH_TEST);
+
+  // "Cull" (don't render) the back faces of triangles
+  // gl.enable(gl.CULL_FACE);
 
   const vertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: vert });
   const fragment = new Shader(gl, { type: gl.FRAGMENT_SHADER, source: frag });
@@ -76,50 +83,107 @@ export const startGame2 = () => {
    * Create vertex buffer
    */
 
-  const positions = new Float32Array([
-    // bottom left
-    -0.5,
-    -0.5,
-    0.5,
-    // bottom right
-    0.5,
-    -0.5,
-    0.5,
-    // top left
-    -0.5,
-    0.5,
-    0.5,
-    // top right
-    0.5,
-    0.5,
-    0.5,
-  ]);
+  const positions = new Float32Array(
+    [
+      // first face
+      [
+        [
+          // bottom left
+          -0.5,
+          -0.5,
+          0.5,
+          // bottom right
+          0.5,
+          -0.5,
+          0.5,
+          // top left
+          -0.5,
+          0.5,
+          0.5,
+        ],
+        [
+          // bottom right
+          0.5,
+          -0.5,
+          0.5,
+          // top right
+          0.5,
+          0.5,
+          0.5,
+          // top left
+          -0.5,
+          0.5,
+          0.5,
+        ]
+      ],
+      // second face
+      [
+        [
+          // top left
+          -0.5,
+          0.5,
+          -0.5,
+          // bottom right
+          0.5,
+          -0.5,
+          -0.5,
+          // bottom left
+          -0.5,
+          -0.5,
+          -0.5,
+        ],
+        [
+          // top right
+          0.5,
+          0.5,
+          -0.5,
+          // bottom right
+          0.5,
+          -0.5,
+          -0.5,
+          // top left
+          -0.5,
+          0.5,
+          -0.5,
+        ]
+      ],
+      // -------------------------------
+      // third face: TODO
+      // -------------------------------
+      [
+        [
+          // bottom left
+          0.5,
+          -0.5,
+          0.5,
+          // bottom right
+          0.5,
+          -0.5,
+          0.5,
+          // top left
+          -0.5,
+          0.5,
+          0.5,
+        ],
+        [
+          // bottom right
+          0.5,
+          -0.5,
+          0.5,
+          // top right
+          0.5,
+          0.5,
+          0.5,
+          // top left
+          -0.5,
+          0.5,
+          0.5,
+        ]
+      ],
+    ].flat(2)
+  );
 
-  const textureCoordinates = new Float32Array([
-    // bottom left
-    0,
-    1,
-    // bottom right (1,1)
-    1,
-    1,
-    // top left (0,0)
-    0,
-    0,
-    // top right
-    1,
-    0,
-  ]);
-
-  /*
-  (0,0)-(1,0)
-     \
-      \
-       \
-        \
-  (0,1)-(1,1)
-  */
-
-  const vboData = new Float32Array([...positions, ...textureCoordinates]);
+  const vboData = new Float32Array([...positions]);
 
   const vertexBuffer = new Buffer(gl, vboData);
 
@@ -135,13 +199,7 @@ export const startGame2 = () => {
       size: VECTOR_3_SIZE,
       type: gl.FLOAT,
       offset: 0
-    },
-    {
-      name: 'texC',
-      size: VECTOR_2_SIZE,
-      type: gl.FLOAT,
-      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
-    },
+    }
   ])
 
   const pipeline: Pipeline = {
@@ -150,7 +208,8 @@ export const startGame2 = () => {
     texture: null,
     framebuffer: null,
     vertexArray,
-    vertexCount
+    vertexCount,
+    primitiveType: gl.TRIANGLES,
   };
 
   /*
@@ -283,6 +342,6 @@ function renderPipeline(
       pipeline.program.setFloatUniform(screenSize, `screenSize`);
     }
 
-    pipeline.vertexArray.render(gl.TRIANGLE_STRIP, 0, pipeline.vertexCount);
+    pipeline.vertexArray.render(pipeline.primitiveType, 0, pipeline.vertexCount);
   });
 }
