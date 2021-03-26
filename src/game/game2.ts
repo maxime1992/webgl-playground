@@ -2,7 +2,7 @@
 // fragment: run 1 time per pixel
 
 import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
-import { fromEvent, merge, Observable, pipe } from 'rxjs';
+import { fromEvent, merge, Observable, pipe, combineLatest} from 'rxjs';
 import {
   map,
   mapTo,
@@ -25,7 +25,7 @@ import frag from './shader2.frag';
 import vert from './shader.vert';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 
-interface UserInput {
+interface UserDragInput {
   yawAngle: number,
   pitchAngle: number,
 }
@@ -170,6 +170,7 @@ export const startGame2 = () => {
   const move$ = fromEvent<MouseEvent>(document, 'mousemove');
   const down$ = fromEvent<MouseEvent>(document, 'mousedown');
   const up$ = fromEvent<MouseEvent>(document, 'mouseup');
+  const zoom$ =   fromEvent<WheelEvent>(document, 'wheel')
 
   const userInput$ = down$.pipe(
     mergeMap((downMouseEvent) =>
@@ -185,8 +186,8 @@ export const startGame2 = () => {
 
   function getUserInput(
     previousMouseEvent: MouseEvent,
-    currentMouseEvent: MouseEvent
-  ): UserInput {
+    currentMouseEvent: MouseEvent,
+  ): UserDragInput {
     return {
         yawAngle: glMatrix.toRadian((currentMouseEvent.clientX - previousMouseEvent.clientX) * -0.5),
         pitchAngle: glMatrix.toRadian((currentMouseEvent.clientY - previousMouseEvent.clientY) * -0.5),
@@ -195,42 +196,55 @@ export const startGame2 = () => {
 
   const windowResize$ = fromEvent(window, 'resize')
   
-  const DEFAULT_USER_INPUT: UserInput = {
+  const DEFAULT_USER_INPUT: UserDragInput = {
     yawAngle: 0,
     pitchAngle: 0,
   }
+
+
+  const a$ = userInput$
+  .pipe(
+    scan<UserDragInput>((acc, curr) => ({
+      yawAngle: acc.yawAngle + curr.yawAngle,
+      pitchAngle: acc.pitchAngle + curr.pitchAngle
+    }), DEFAULT_USER_INPUT),
+    // combineLatest(windowResize$.pipe(startWith(undefined)))
+    startWith(DEFAULT_USER_INPUT)
+  );
+
+  const b$ : Observable<{orbitDistance:number}> = zoom$
+  .pipe(
+    scan<WheelEvent, {orbitDistance: number}>((acc, curr) => ({
+      orbitDistance: acc.orbitDistance + Math.sign(curr.deltaY) * acc.orbitDistance * 0.075
+    }), {orbitDistance: 5}),
+      startWith( {orbitDistance: 5})
+  );
   
-  userInput$
-    .pipe(
-      scan<UserInput>((acc, curr) => ({
-        yawAngle: acc.yawAngle + curr.yawAngle,
-        pitchAngle: acc.pitchAngle + curr.pitchAngle,
-      }), DEFAULT_USER_INPUT),
-      combineLatest(windowResize$.pipe(startWith(undefined))),
-      startWith(DEFAULT_USER_INPUT),
-      tap(([userInput]) => {
-        render(canvas, gl, pipeline, userInput);
+  combineLatest( a$, b$ ).pipe(
+     tap(([userInput, {orbitDistance}]) => {
+        render(canvas, gl, pipeline, userInput, orbitDistance);
       })
-    )
-    .subscribe();
+  ).subscribe()
+
 };
 
 function render(
   canvas: HTMLCanvasElement,
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
-  userInput: UserInput
+  userDragInput: UserDragInput,
+  orbitDistance: number,
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
   let transformationMatrix = mat4.create();
 
-  let eyePosition = vec3.fromValues(0, 0, 5);
+  let eyePosition = vec3.fromValues(0, 0, orbitDistance);
 
-  if (userInput) {
-    vec3.rotateX(eyePosition, eyePosition, [0, 0, 0], userInput.pitchAngle);
-    vec3.rotateY(eyePosition, eyePosition, [0, 0, 0], userInput.yawAngle);
+  if (userDragInput) {
+    vec3.rotateX(eyePosition, eyePosition, [0, 0, 0], userDragInput.pitchAngle);
+    vec3.rotateY(eyePosition, eyePosition, [0, 0, 0], userDragInput.yawAngle);
   }
 
   const viewMatrix = mat4.lookAt(
