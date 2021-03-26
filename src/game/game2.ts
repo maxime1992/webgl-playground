@@ -2,7 +2,7 @@
 // fragment: run 1 time per pixel
 
 import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
-import { fromEvent, merge, Observable, pipe, combineLatest} from 'rxjs';
+import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel } from 'rxjs';
 import {
   map,
   mapTo,
@@ -76,29 +76,23 @@ export const startGame2 = () => {
    * Create vertex buffer
    */
 
-  // [-0.5, -0.5, 0, 0.5, -0.5, 0, 0, 0.5, 0]
-  // const positions = new Float32Array(
-  //   Array.from({ length: 9 * 3 })
-  //     .fill(null)
-  //     .map(() => Math.random() * 2.0 - 1.0)
-  // );
   const positions = new Float32Array([
     // bottom left
     -0.5,
     -0.5,
-    0,
+    0.5,
     // bottom right
     0.5,
     -0.5,
-    0,
+    0.5,
     // top left
     -0.5,
     0.5,
-    0,
+    0.5,
     // top right
     0.5,
     0.5,
-    0,
+    0.5,
   ]);
 
   const textureCoordinates = new Float32Array([
@@ -170,7 +164,8 @@ export const startGame2 = () => {
   const move$ = fromEvent<MouseEvent>(document, 'mousemove');
   const down$ = fromEvent<MouseEvent>(document, 'mousedown');
   const up$ = fromEvent<MouseEvent>(document, 'mouseup');
-  const zoom$ =   fromEvent<WheelEvent>(document, 'wheel')
+  const zoom$ =   fromEvent<WheelEvent>(document, 'wheel');
+  const windowResize$ = fromEvent(window, 'resize');
 
   const userInput$ = down$.pipe(
     mergeMap((downMouseEvent) =>
@@ -194,36 +189,34 @@ export const startGame2 = () => {
     };
   }
 
-  const windowResize$ = fromEvent(window, 'resize')
   
   const DEFAULT_USER_INPUT: UserDragInput = {
     yawAngle: 0,
     pitchAngle: 0,
   }
 
-
-  const a$ = userInput$
+  combineLatestTopLevel(
+    windowResize$.pipe(startWith(undefined)),
+    userInput$
+    .pipe(
+      scan<UserDragInput>((acc, curr) => ({
+        yawAngle: acc.yawAngle + curr.yawAngle,
+        pitchAngle: Math.max(Math.min(acc.pitchAngle + curr.pitchAngle, glMatrix.toRadian(89.9)), glMatrix.toRadian(-89.9)) 
+      }), DEFAULT_USER_INPUT),
+      startWith(DEFAULT_USER_INPUT)
+    ), 
+    zoom$
+      .pipe(
+        scan<WheelEvent, {orbitDistance: number}>((acc, curr) => ({
+          orbitDistance: acc.orbitDistance + Math.sign(curr.deltaY) * acc.orbitDistance * 0.075
+        }), {orbitDistance: 5}),
+          startWith( {orbitDistance: 5})
+      )
+  )
   .pipe(
-    scan<UserDragInput>((acc, curr) => ({
-      yawAngle: acc.yawAngle + curr.yawAngle,
-      pitchAngle: acc.pitchAngle + curr.pitchAngle
-    }), DEFAULT_USER_INPUT),
-    // combineLatest(windowResize$.pipe(startWith(undefined)))
-    startWith(DEFAULT_USER_INPUT)
-  );
-
-  const b$ : Observable<{orbitDistance:number}> = zoom$
-  .pipe(
-    scan<WheelEvent, {orbitDistance: number}>((acc, curr) => ({
-      orbitDistance: acc.orbitDistance + Math.sign(curr.deltaY) * acc.orbitDistance * 0.075
-    }), {orbitDistance: 5}),
-      startWith( {orbitDistance: 5})
-  );
-  
-  combineLatest( a$, b$ ).pipe(
-     tap(([userInput, {orbitDistance}]) => {
-        render(canvas, gl, pipeline, userInput, orbitDistance);
-      })
+    tap(([_, userInput, {orbitDistance}]) => {      
+      render(canvas, gl, pipeline, userInput, orbitDistance);
+    })
   ).subscribe()
 
 };
