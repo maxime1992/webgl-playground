@@ -24,18 +24,18 @@ export class VertexArray {
       const { name, ...commonVaoElement } = vaoElement;
 
       // -1 if couldn't find attribute
-      const positionAttributeLocation = gl.getAttribLocation(
+      const attributeLocation = gl.getAttribLocation(
         program.getProgramId(),
         name
       );
 
-      if (positionAttributeLocation < 0) {
-        throw new Error(`Failed to find attribute location for: 'position'`);
+      if (attributeLocation < 0) {
+        throw new Error(`Failed to find attribute location for: ${name}`);
       }
       
       return {
         ...commonVaoElement,
-        location: positionAttributeLocation
+        location: attributeLocation
       }
     })
   }

@@ -1,7 +1,7 @@
 // vertex: run 1 time per vertex (points in the shape)
 // fragment: run 1 time per pixel
 
-import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
+import { glMatrix, mat4, mat3, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel } from 'rxjs';
 import {
   map,
@@ -21,8 +21,8 @@ import { VertexArray } from './vertex-array';
 import { Texture } from './texture';
 import { Buffer } from './buffer';
 import { Framebuffer } from './framebuffer';
-import frag from './shader2.frag';
-import vert from './shader.vert';
+import frag from './debug.frag';
+import vert from './debug.vert';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 
 interface UserDragInput {
@@ -41,9 +41,13 @@ interface Pipeline {
   primitiveType: GLenum;
 }
 
-// will do later on
-// function renderPassToFrameBuffer(pipeline: Pipeline):void {
-// }
+const COLORING_POSITIONS           = 0;
+const COLORING_NORMALS             = 1;
+const COLORING_TEXTURE_COORDINATES = 2;
+const COLORING_VERTEX_COLORS       = 3;
+const COLORING_UNIFORM_COLOR       = 4;
+const COLORING_TEXTURE             = 5;
+const COLORING_WHITE               = 6;
 
 export const startGame2 = () => {
   /*
@@ -82,7 +86,48 @@ export const startGame2 = () => {
   /*
    * Create vertex buffer
    */
+  
+      // // first face
+      // positions = [
+      //   [
+      //     // bottom left
+      //     -0.5,
+      //     -0.5,
+      //     0.5,
+      //     // bottom right
+      //     0.5,
+      //     -0.5,
+      //     0.5,
+      //     // top left
+      //     -0.5,
+      //     0.5,
+      //     0.5,
+      //     // top right
+      //     0.5,
+      //     0.5,
+      //     0.5,
+      //   ]
+      // ],
+      
+      // indices = [
+      // // first face
+      //   [
+      //     // bottom left
+      //     0
+      //     // bottom right
+      //     1
+      //     // top left
+      //     2
+      //     // bottom right
+      //     1
+      //     // top right
+      //     3
+      //     // top left
+      //     2
+      //   ]
+      // ],
 
+  // TODO: Convert to Mesh class and use an index array.
   const positions = new Float32Array(
     [
       // first face
@@ -147,43 +192,163 @@ export const startGame2 = () => {
           -0.5,
         ]
       ],
-      // -------------------------------
-      // third face: TODO
-      // -------------------------------
+      // third face
       [
         [
-          // bottom left
-          0.5,
-          -0.5,
-          0.5,
           // bottom right
           0.5,
           -0.5,
-          0.5,
-          // top left
           -0.5,
+          // top left
           0.5,
+          0.5,
+          0.5,
+          // bottom left
+          0.5,
+          -0.5,
           0.5,
         ],
         [
           // bottom right
           0.5,
           -0.5,
-          0.5,
+          -0.5,
           // top right
           0.5,
+          0.5,
+          -0.5,
+          // top left
+          0.5,
+          0.5,
+          0.5,
+        ]
+      ],
+      // fourth face
+      [
+        [
+          // bottom right
+          -0.5,
+          -0.5,
+          0.5,
+          // top right
+          -0.5,
+          0.5,
+          0.5,
+          // bottom left
+          -0.5,
+          -0.5,
+          -0.5,
+        ],
+        [
+          // bottom left
+          -0.5,
+          -0.5,
+          -0.5,
+          // top right
+          -0.5,
           0.5,
           0.5,
           // top left
           -0.5,
           0.5,
+          -0.5,
+        ]
+      ],
+      // fifth face
+      [
+        [
+          -0.5,
           0.5,
+          0.5,
+
+          0.5,
+          0.5,
+          0.5,
+
+          -0.5,
+          0.5,
+          -0.5,
+        ],
+        [
+          0.5,
+          0.5,
+          0.5,
+
+          0.5,
+          0.5,
+         -0.5,
+
+          -0.5,
+          0.5,
+          -0.5,
+        ]
+      ],
+      // sixth face
+      [
+        [
+          -0.5,
+          -0.5,
+          0.5,
+
+          -0.5,
+          -0.5,
+          -0.5,
+
+          0.5,
+          -0.5,
+          0.5,
+        ],
+        [
+          0.5,
+          -0.5,
+          0.5,
+
+          -0.5,
+          -0.5,
+          -0.5,
+
+          0.5,
+          -0.5,
+          -0.5,
         ]
       ],
     ].flat(2)
   );
 
-  const vboData = new Float32Array([...positions]);
+  const NORMAL_X_AXIS_NEGATIVE = [-1,0,0] as const
+  const NORMAL_X_AXIS_POSITIVE = [1,0,0] as const
+
+  const NORMAL_Y_AXIS_NEGATIVE = [0,-1,0] as const
+  const NORMAL_Y_AXIS_POSITIVE = [0,1,0] as const
+  
+  const NORMAL_Z_AXIS_NEGATIVE = [0,0,-1] as const
+  const NORMAL_Z_AXIS_POSITIVE = [0,0,1] as const
+
+  const generateSameThreeNormals = (normal: readonly [x:number, y:number,z:number]) => [normal, normal, normal]
+  
+  const normals = new Float32Array(
+    [
+      generateSameThreeNormals(NORMAL_Z_AXIS_POSITIVE),
+      generateSameThreeNormals(NORMAL_Z_AXIS_POSITIVE),
+
+      generateSameThreeNormals(NORMAL_Z_AXIS_NEGATIVE),
+      generateSameThreeNormals(NORMAL_Z_AXIS_NEGATIVE),
+
+      generateSameThreeNormals(NORMAL_X_AXIS_POSITIVE),
+      generateSameThreeNormals(NORMAL_X_AXIS_POSITIVE),
+
+      generateSameThreeNormals(NORMAL_X_AXIS_NEGATIVE),
+      generateSameThreeNormals(NORMAL_X_AXIS_NEGATIVE),
+
+      generateSameThreeNormals(NORMAL_Y_AXIS_POSITIVE),
+      generateSameThreeNormals(NORMAL_Y_AXIS_POSITIVE),
+
+      generateSameThreeNormals(NORMAL_Y_AXIS_NEGATIVE),
+      generateSameThreeNormals(NORMAL_Y_AXIS_NEGATIVE),
+    ].flat(2)
+  );
+
+  const vboData = new Float32Array([...positions, ...normals]);
 
   const vertexBuffer = new Buffer(gl, vboData);
 
@@ -195,10 +360,16 @@ export const startGame2 = () => {
 
  const vertexArray = new VertexArray(gl, program, vertexBuffer, [
     {
-      name: 'position',
+      name: 'localPosition',
       size: VECTOR_3_SIZE,
       type: gl.FLOAT,
       offset: 0
+    },
+    {
+      name: 'localNormal',
+      size: VECTOR_3_SIZE,
+      type: gl.FLOAT,
+      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
     }
   ])
 
@@ -328,18 +499,27 @@ function render(
 function renderPipeline(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
-  transformationMatrix: mat4,
+  projectionFromWorld: mat4,
   screenSize: vec2 | null = null
 ) {
+  const worldFromLocal = mat4.create();
+  const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
+
+  const coloring = COLORING_NORMALS;
+  const uniformColor = vec3.fromValues(1.0, 0.85, 0.7);
+  const opacity = 1.0;
+
   pipeline.program.use(() => {
-    pipeline.program.setMatrixUniform(transformationMatrix, `transformation`);
+    pipeline.program.setMatrixUniform(worldFromLocal, `worldFromLocal`);
+    pipeline.program.setMatrixUniform(worldFromLocalNormal, `worldFromLocalNormal`);
+    pipeline.program.setMatrixUniform(projectionFromWorld, `projectionFromWorld`);
+
+    pipeline.program.setIntUniform(coloring, `coloring`);
+    pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
+    pipeline.program.setFloatUniform(opacity, `opacity`);
 
     if (pipeline.texture) {
-    pipeline.program.setTextureUniform(pipeline.texture, `tex`, )
-    }
-
-    if (screenSize) {
-      pipeline.program.setFloatUniform(screenSize, `screenSize`);
+      pipeline.program.setTextureUniform(pipeline.texture, `tex`, )
     }
 
     pipeline.vertexArray.render(pipeline.primitiveType, 0, pipeline.vertexCount);
