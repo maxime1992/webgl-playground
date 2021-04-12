@@ -17,11 +17,7 @@ import {
 export class Program {
   private glProgramId: WebGLProgram;
 
-  constructor(
-    private gl: WebGLRenderingContext,
-    vertexShader: Shader,
-    fragmentShader: Shader
-  ) {
+  constructor(private gl: WebGLRenderingContext, vertexShader: Shader, fragmentShader: Shader) {
     this.glProgramId = getSafe(gl.createProgram(), `Couldn't create program`);
 
     gl.attachShader(this.glProgramId, vertexShader.getWebGlShaderId());
@@ -31,11 +27,7 @@ export class Program {
     gl.linkProgram(this.glProgramId);
 
     if (!gl.getProgramParameter(this.glProgramId, gl.LINK_STATUS)) {
-      throw new Error(
-        `Couldn't link the attached shaders. ${gl.getProgramInfoLog(
-          this.glProgramId
-        )}`
-      );
+      throw new Error(`Couldn't link the attached shaders. ${gl.getProgramInfoLog(this.glProgramId)}`);
     }
 
     gl.detachShader(this.glProgramId, vertexShader.getWebGlShaderId());
@@ -55,10 +47,7 @@ export class Program {
 
   public setIntUniform(val: number | Int32Array, name: string): boolean {
     const gl: WebGLRenderingContext = this.gl;
-    const loc: WebGLUniformLocation | null = gl.getUniformLocation(
-      this.glProgramId,
-      name
-    );
+    const loc: WebGLUniformLocation | null = gl.getUniformLocation(this.glProgramId, name);
 
     if (!loc) {
       console.error('Uniform location not found for: ' + name);
@@ -88,15 +77,9 @@ export class Program {
     return true;
   }
 
-  public setFloatUniform(
-    val: number | vec2 | vec3 | vec4,
-    name: string
-  ): boolean {
+  public setFloatUniform(val: number | vec2 | vec3 | vec4, name: string): boolean {
     const gl: WebGLRenderingContext = this.gl;
-    const loc: WebGLUniformLocation | null = gl.getUniformLocation(
-      this.glProgramId,
-      name
-    );
+    const loc: WebGLUniformLocation | null = gl.getUniformLocation(this.glProgramId, name);
 
     if (!loc) {
       console.error('Uniform location not found for: ' + name);
@@ -115,10 +98,7 @@ export class Program {
       } else if (isVec4(val)) {
         gl.uniform4fv(loc, val);
       } else {
-        throw new UnreachableCaseError(
-          val,
-          'GLSL vec' + valLength + ' does not exist'
-        );
+        throw new UnreachableCaseError(val, 'GLSL vec' + valLength + ' does not exist');
       }
     }
     return true;
@@ -126,10 +106,7 @@ export class Program {
 
   public setMatrixUniform(val: mat2 | mat3 | mat4, name: string): boolean {
     const gl: WebGLRenderingContext = this.gl;
-    const loc: WebGLUniformLocation | null = gl.getUniformLocation(
-      this.glProgramId,
-      name
-    );
+    const loc: WebGLUniformLocation | null = gl.getUniformLocation(this.glProgramId, name);
 
     if (!loc) {
       console.error('Uniform location not found for: ' + name);
@@ -143,34 +120,24 @@ export class Program {
     } else if (isMat4(val)) {
       gl.uniformMatrix4fv(loc, false, val);
     } else {
-      throw new UnreachableCaseError(
-        val,
-        'GLSL matrix data must contain 4, 9, or 16 elements'
-      );
+      throw new UnreachableCaseError(val, 'GLSL matrix data must contain 4, 9, or 16 elements');
     }
 
     return true;
   }
 
-    public setTextureUniform(
-      texture: Texture,
-      name: string,
-      activeTex: number = 0
-    ): boolean {
-      const gl: WebGLRenderingContext = this.gl;
-      const loc: WebGLUniformLocation | null = gl.getUniformLocation(
-        this.glProgramId,
-        name
-      );
+  public setTextureUniform(texture: Texture, name: string, activeTex: number = 0): boolean {
+    const gl: WebGLRenderingContext = this.gl;
+    const loc: WebGLUniformLocation | null = gl.getUniformLocation(this.glProgramId, name);
 
-      if (!loc) {
-        console.error('Uniform location not found for: ' + name);
-        return false;
-      }
-
-      gl.activeTexture(gl.TEXTURE0 + activeTex);
-      gl.uniform1i(loc, activeTex);
-      texture.bind();
-      return true;
+    if (!loc) {
+      console.error('Uniform location not found for: ' + name);
+      return false;
     }
+
+    gl.activeTexture(gl.TEXTURE0 + activeTex);
+    gl.uniform1i(loc, activeTex);
+    texture.bind();
+    return true;
+  }
 }

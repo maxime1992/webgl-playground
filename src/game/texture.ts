@@ -1,34 +1,21 @@
 import { getSafe, isPowerOf2, ShaderData } from './utils';
 
-
 export class Texture {
   private textureId: WebGLTexture;
 
-  constructor(private gl: WebGLRenderingContext, 
+  constructor(
+    private gl: WebGLRenderingContext,
     width: number,
     height: number,
     data: ArrayBufferView | null = null,
-    private textureType = gl.TEXTURE_2D
-    ) {
+    private textureType = gl.TEXTURE_2D,
+  ) {
     // Create the WebGL shader id. This does nothing
     // until you use the ID in other functions
-    this.textureId = getSafe(
-      gl.createTexture(),
-      `Couldn't create a texture`
-    );
+    this.textureId = getSafe(gl.createTexture(), `Couldn't create a texture`);
 
     gl.bindTexture(textureType, this.textureId);
-    gl.texImage2D(
-      textureType,
-      0,
-      gl.RGBA,
-      width,
-      height,
-      0,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      data
-    );
+    gl.texImage2D(textureType, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     // set the filtering so we don't need mips
     gl.texParameteri(textureType, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(textureType, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -47,15 +34,13 @@ export class Texture {
     this.gl.bindTexture(this.textureType, null);
   }
 
-  public scopeBind(cb:() => void): void {
+  public scopeBind(cb: () => void): void {
     this.bind();
     cb();
     this.unbind();
   }
 
-  public updateTexture(
-    image: HTMLImageElement
-  ): void {
+  public updateTexture(image: HTMLImageElement): void {
     // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
 
     this.gl.bindTexture(this.textureType, this.getTextureId());
@@ -76,11 +61,10 @@ export class Texture {
         this.textureType,
         this.gl.TEXTURE_MIN_FILTER,
         // other option `gl.NEAREST`
-        this.gl.LINEAR
+        this.gl.LINEAR,
       );
     }
 
     this.gl.bindTexture(this.textureType, null);
   }
-
 }

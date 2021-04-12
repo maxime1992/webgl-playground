@@ -56,7 +56,6 @@ export function isNumber(val: any): val is number {
   return typeof val === 'number' && !isNaN(val);
 }
 
-
 export function isPowerOf2(value) {
   return (value & (value - 1)) == 0;
 }

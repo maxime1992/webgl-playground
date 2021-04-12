@@ -3,14 +3,7 @@
 
 import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, merge, Observable } from 'rxjs';
-import {
-  map,
-  mapTo,
-  mergeMap,
-  startWith,
-  takeUntil,
-  tap,
-} from 'rxjs/operators';
+import { map, mapTo, mergeMap, startWith, takeUntil, tap } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
 import filterFrag from './edge-filter.frag';
 import { Program } from './program';
@@ -51,9 +44,7 @@ export const startGame = () => {
   /*
    * Setup WebGL
    */
-  const canvas: HTMLCanvasElement | undefined = document.getElementById(
-    'renderCanvas'
-  ) as HTMLCanvasElement;
+  const canvas: HTMLCanvasElement | undefined = document.getElementById('renderCanvas') as HTMLCanvasElement;
 
   if (!canvas) {
     throw new Error(`No canvas available`);
@@ -144,7 +135,7 @@ export const startGame = () => {
     const image = new Image();
 
     image.onload = () => {
-      texture.updateTexture(  image);
+      texture.updateTexture(image);
 
       observer.next();
       observer.complete();
@@ -153,37 +144,28 @@ export const startGame = () => {
     image.src = forestPicture;
   });
 
-  const frameBufferTexture = new Texture(
-    gl,
-    canvas.clientWidth,
-    canvas.clientHeight,
-  );
+  const frameBufferTexture = new Texture(gl, canvas.clientWidth, canvas.clientHeight);
 
   // the idea of the frame buffer is that we can render onto
   // it instead of the screen but it lets us pass that render
   // buffer to other transformation pipelines if we need to
   // (for example to blur a picture)
-  const frameBuffer = new Framebuffer(
-    gl,
-    canvas.clientWidth,
-    canvas.clientHeight,
-    frameBufferTexture
-  );
+  const frameBuffer = new Framebuffer(gl, canvas.clientWidth, canvas.clientHeight, frameBufferTexture);
 
- const vertexArray = new VertexArray(gl, program, vertexBuffer, [
+  const vertexArray = new VertexArray(gl, program, vertexBuffer, [
     {
       name: 'position',
       size: VECTOR_3_SIZE,
       type: gl.FLOAT,
-      offset: 0
+      offset: 0,
     },
     {
       name: 'texC',
       size: VECTOR_2_SIZE,
       type: gl.FLOAT,
-      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT,
     },
-  ])
+  ]);
 
   const pipeline: Pipeline = {
     program,
@@ -191,7 +173,7 @@ export const startGame = () => {
     texture,
     framebuffer: frameBuffer,
     vertexArray,
-    vertexCount
+    vertexCount,
   };
 
   const filterFragment = new Shader(gl, {
@@ -205,7 +187,7 @@ export const startGame = () => {
     // as we don't do anything special on the vertex level
     // and for the transformation we can just pass the identity matrix
     vertex,
-    filterFragment
+    filterFragment,
   );
 
   const filterPositions = new Float32Array([
@@ -251,10 +233,7 @@ export const startGame = () => {
   (0,1)-(1,1)
   */
 
-  const filterVboData = new Float32Array([
-    ...filterPositions,
-    ...filterTextureCoordinates,
-  ]);
+  const filterVboData = new Float32Array([...filterPositions, ...filterTextureCoordinates]);
 
   const filterVertexBuffer = new Buffer(gl, filterVboData);
 
@@ -263,23 +242,23 @@ export const startGame = () => {
       name: 'position',
       size: VECTOR_3_SIZE,
       type: gl.FLOAT,
-      offset: 0
+      offset: 0,
     },
     {
       name: 'texC',
       size: VECTOR_2_SIZE,
       type: gl.FLOAT,
-      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT,
     },
-  ])
-  
+  ]);
+
   const filterPipeline: Pipeline = {
     program: filterProgram,
     buffer: filterVertexBuffer,
     texture: frameBufferTexture,
     framebuffer: null,
     vertexArray: filterVertexArray,
-    vertexCount
+    vertexCount,
   };
 
   /*
@@ -297,27 +276,25 @@ export const startGame = () => {
   const userInput$ = down$.pipe(
     mergeMap((downMouseEvent) =>
       move$.pipe(
-        map((moveMouseEvent) =>
-          getUserInput(downMouseEvent, moveMouseEvent, canvas)
-        ),
-        takeUntil(up$)
-      )
-    )
+        map((moveMouseEvent) => getUserInput(downMouseEvent, moveMouseEvent, canvas)),
+        takeUntil(up$),
+      ),
+    ),
   );
 
   function getUserInput(
     initialMouseEvent: MouseEvent,
     currentMouseEvent: MouseEvent,
-    canvas: HTMLCanvasElement
+    canvas: HTMLCanvasElement,
   ): UserInput {
     return {
       initialMouseClipSpace: mousePositionViewportSpaceToClipSpace(
         [initialMouseEvent.clientX, initialMouseEvent.clientY],
-        canvas
+        canvas,
       ),
       currentMouseClipSpace: mousePositionViewportSpaceToClipSpace(
         [currentMouseEvent.clientX, currentMouseEvent.clientY],
-        canvas
+        canvas,
       ),
       interactions: {
         rotate: initialMouseEvent.shiftKey,
@@ -331,7 +308,7 @@ export const startGame = () => {
     // in viewport space the origin 0, 0 is at the top left
     // the bottom right corner has the coordinates canvasClientWidth, canvasClientHeight
     mousePositionViewportSpace: vec2,
-    canvas: HTMLCanvasElement
+    canvas: HTMLCanvasElement,
   ): vec2 {
     // the WebGL viewport space has the origin at the bottom left
     // therefore we do not modify the x value but need to update y
@@ -345,7 +322,7 @@ export const startGame = () => {
     const normalizedMousePositionViewportSpace = vec2.divide(
       vec2.create(),
       mousePositionWebGlViewportSpace,
-      vec2.fromValues(canvas.clientWidth, canvas.clientHeight)
+      vec2.fromValues(canvas.clientWidth, canvas.clientHeight),
     );
 
     // we now need to transform that into clip space which goes
@@ -354,7 +331,7 @@ export const startGame = () => {
       vec2.create(),
       vec2.fromValues(-1, -1),
       normalizedMousePositionViewportSpace,
-      2
+      2,
     );
 
     return mousePositionClipSpace;
@@ -365,7 +342,7 @@ export const startGame = () => {
       startWith(undefined),
       tap((userInput) => {
         render(canvas, gl, pipeline, filterPipeline, userInput);
-      })
+      }),
     )
     .subscribe();
 };
@@ -375,7 +352,7 @@ function render(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   filterPipeline: Pipeline,
-  userInput?: UserInput
+  userInput?: UserInput,
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
@@ -389,29 +366,19 @@ function render(
         vec3.fromValues(
           userInput.currentMouseClipSpace[0], // x
           userInput.currentMouseClipSpace[1], // y
-          1 // z
-        )
+          1, // z
+        ),
       );
 
       mat4.multiply(transformationMatrix, scaleMatrix, transformationMatrix);
     }
 
     if (userInput.interactions.rotate) {
-      const startVec = vec2.normalize(
-        vec2.create(),
-        userInput.initialMouseClipSpace
-      );
-      const endVec = vec2.normalize(
-        vec2.create(),
-        userInput.currentMouseClipSpace
-      );
+      const startVec = vec2.normalize(vec2.create(), userInput.initialMouseClipSpace);
+      const endVec = vec2.normalize(vec2.create(), userInput.currentMouseClipSpace);
       const startAngle = Math.atan2(startVec[1], startVec[0]);
       const endAngle = Math.atan2(endVec[1], endVec[0]);
-      const rotationMatrix = mat4.fromRotation(
-        mat4.create(),
-        endAngle - startAngle,
-        vec3.fromValues(0, 0, 1)
-      );
+      const rotationMatrix = mat4.fromRotation(mat4.create(), endAngle - startAngle, vec3.fromValues(0, 0, 1));
 
       mat4.multiply(transformationMatrix, rotationMatrix, transformationMatrix);
     }
@@ -422,15 +389,11 @@ function render(
         vec3.fromValues(
           userInput.currentMouseClipSpace[0], // x
           userInput.currentMouseClipSpace[1], // y
-          0 // z
-        )
+          0, // z
+        ),
       );
 
-      mat4.multiply(
-        transformationMatrix,
-        translationMatrix,
-        transformationMatrix
-      );
+      mat4.multiply(transformationMatrix, translationMatrix, transformationMatrix);
     }
   }
 
@@ -455,37 +418,32 @@ function render(
     // set the viewport and clear the framebuffer
     gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
+
     renderPipeline(gl, pipeline, transformationMatrix);
     // ^ This rendered to the framebuffer referenced by `frameBufferId`.
     // That framebuffer is storing the color values in the texture
     // referenced by `frameBufferTextureId`. Now we can bind the default
     // framebuffer (the screen), bind the `frameBufferTextureId` texture,
     // and re-render the scene to view the results.
-  })  
+  });
 
   // set the viewport and clear the framebuffer
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  renderPipeline(
-    gl,
-    filterPipeline,
-    mat4.create(),
-    vec2.fromValues(canvas.width, canvas.height)
-  );
+  renderPipeline(gl, filterPipeline, mat4.create(), vec2.fromValues(canvas.width, canvas.height));
 }
 
 function renderPipeline(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   transformationMatrix: mat4,
-  screenSize: vec2 | null = null
+  screenSize: vec2 | null = null,
 ) {
   pipeline.program.use(() => {
     pipeline.program.setMatrixUniform(transformationMatrix, `transformation`);
 
-    pipeline.program.setTextureUniform(pipeline.texture, `tex`, )
+    pipeline.program.setTextureUniform(pipeline.texture, `tex`);
 
     if (screenSize) {
       pipeline.program.setFloatUniform(screenSize, `screenSize`);
