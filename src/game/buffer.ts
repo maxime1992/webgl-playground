@@ -3,7 +3,7 @@ import { getSafe, isPowerOf2, ShaderData } from './utils';
 export class Buffer {
   private bufferId: WebGLTexture;
 
-  constructor(private gl: WebGLRenderingContext, vboData: Float32Array, private bufferType =  gl.ARRAY_BUFFER) {
+  constructor(private gl: WebGLRenderingContext, vboData: BufferSource, private bufferType =  gl.ARRAY_BUFFER) {
     // create buffer on the GPU
     this.bufferId = getSafe(gl.createBuffer(), `Couldn't create the buffer`);
 

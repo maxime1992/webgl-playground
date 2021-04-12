@@ -55,5 +55,9 @@ void main() {
   } else { // coloring == COLORING_WHITE
   }
 
+  // if (!gl_FrontFacing) {
+  //   shapeColor *= 0.3;
+  // }
+
   gl_FragColor = vec4(shapeColor, opacity);
 }

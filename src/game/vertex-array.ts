@@ -1,5 +1,6 @@
 import { Program } from './program';
 import { Buffer } from './buffer';
+import { NUM_BYTES_IN_UNSIGNED_SHORT } from './utils';
 
 export interface VAOElement {
     name: string;
@@ -55,10 +56,17 @@ export class VertexArray {
     })
   }
 
-  public render(primitiveType: GLenum, start: number, vertexCount: number) {
+  public render(primitiveType: GLenum, start: number, vertexCount: number, indexBuffer:  Buffer | null) {
     this.buffer.scopeBind(() => {
       this.prepareForRender();
-      this.gl.drawArrays(primitiveType, start, vertexCount);
+      
+      if (indexBuffer){
+        indexBuffer.scopeBind(() =>{
+          this.gl.drawElements(primitiveType, vertexCount, this.gl.UNSIGNED_SHORT, start * NUM_BYTES_IN_UNSIGNED_SHORT);
+        });
+      }else{
+        this.gl.drawArrays(primitiveType, start, vertexCount);
+      }
     })
   }
 }

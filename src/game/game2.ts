@@ -33,8 +33,9 @@ interface UserDragInput {
 // often called "pipeline" or "render pass"
 interface Pipeline {
   program: Program;
-  buffer: Buffer;
+  vertexBuffer: Buffer;
   vertexArray: VertexArray;
+  indexBuffer: Buffer | null;
   texture: Texture | null;
   framebuffer: Framebuffer | null;
   vertexCount: number;
@@ -76,7 +77,7 @@ export const startGame2 = () => {
   gl.enable(gl.DEPTH_TEST);
 
   // "Cull" (don't render) the back faces of triangles
-  // gl.enable(gl.CULL_FACE);
+  gl.enable(gl.CULL_FACE);
 
   const vertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: vert });
   const fragment = new Shader(gl, { type: gl.FRAGMENT_SHADER, source: frag });
@@ -86,232 +87,50 @@ export const startGame2 = () => {
   /*
    * Create vertex buffer
    */
-  
-      // // first face
-      // positions = [
-      //   [
-      //     // bottom left
-      //     -0.5,
-      //     -0.5,
-      //     0.5,
-      //     // bottom right
-      //     0.5,
-      //     -0.5,
-      //     0.5,
-      //     // top left
-      //     -0.5,
-      //     0.5,
-      //     0.5,
-      //     // top right
-      //     0.5,
-      //     0.5,
-      //     0.5,
-      //   ]
-      // ],
-      
-      // indices = [
-      // // first face
-      //   [
-      //     // bottom left
-      //     0
-      //     // bottom right
-      //     1
-      //     // top left
-      //     2
-      //     // bottom right
-      //     1
-      //     // top right
-      //     3
-      //     // top left
-      //     2
-      //   ]
-      // ],
 
+  //          G                      H
+  //           xxxxxxxxxxxxxxxxxxxxx
+  //         xx                     xxx
+  //       xx      x              xxx x
+  //     xx        x            xxx   x
+  //    xxx        x          xxx     x
+  //   xxx         x        xxx       x
+  //   xxxxxxxxxxxxxxxxxxxxxx         x
+  // F x           x       xE         x
+  //   x           x       x          x
+  //   x        B  x       x         xx  C
+  //   x           xxxxxxxxxxxxxxxxxxxx
+  //   x          xx       x        xx
+  //   x        xxx        x      xx
+  //   x      xxx          x    xxx
+  //   x    xxx            x   xx
+  //   x  xxx              x  xx
+  //   xxxx                xxx
+  //   xxxxxxxxxxxxxxxxxxxxxx
+  // A                      D
+
+  const A = [-0.5, -0.5, +0.5]
+  const B = [-0.5, -0.5, -0.5]
+  const C = [+0.5, -0.5, -0.5]
+  const D = [+0.5, -0.5, +0.5]
+  const E = [+0.5, +0.5, +0.5]
+  const F = [-0.5, +0.5, +0.5]
+  const G = [-0.5, +0.5, -0.5]
+  const H = [+0.5, +0.5, -0.5]
+
+
+      
   // TODO: Convert to Mesh class and use an index array.
   const positions = new Float32Array(
     [
-      // first face
-      [
-        [
-          // bottom left
-          -0.5,
-          -0.5,
-          0.5,
-          // bottom right
-          0.5,
-          -0.5,
-          0.5,
-          // top left
-          -0.5,
-          0.5,
-          0.5,
-        ],
-        [
-          // bottom right
-          0.5,
-          -0.5,
-          0.5,
-          // top right
-          0.5,
-          0.5,
-          0.5,
-          // top left
-          -0.5,
-          0.5,
-          0.5,
-        ]
-      ],
-      // second face
-      [
-        [
-          // top left
-          -0.5,
-          0.5,
-          -0.5,
-          // bottom right
-          0.5,
-          -0.5,
-          -0.5,
-          // bottom left
-          -0.5,
-          -0.5,
-          -0.5,
-        ],
-        [
-          // top right
-          0.5,
-          0.5,
-          -0.5,
-          // bottom right
-          0.5,
-          -0.5,
-          -0.5,
-          // top left
-          -0.5,
-          0.5,
-          -0.5,
-        ]
-      ],
-      // third face
-      [
-        [
-          // bottom right
-          0.5,
-          -0.5,
-          -0.5,
-          // top left
-          0.5,
-          0.5,
-          0.5,
-          // bottom left
-          0.5,
-          -0.5,
-          0.5,
-        ],
-        [
-          // bottom right
-          0.5,
-          -0.5,
-          -0.5,
-          // top right
-          0.5,
-          0.5,
-          -0.5,
-          // top left
-          0.5,
-          0.5,
-          0.5,
-        ]
-      ],
-      // fourth face
-      [
-        [
-          // bottom right
-          -0.5,
-          -0.5,
-          0.5,
-          // top right
-          -0.5,
-          0.5,
-          0.5,
-          // bottom left
-          -0.5,
-          -0.5,
-          -0.5,
-        ],
-        [
-          // bottom left
-          -0.5,
-          -0.5,
-          -0.5,
-          // top right
-          -0.5,
-          0.5,
-          0.5,
-          // top left
-          -0.5,
-          0.5,
-          -0.5,
-        ]
-      ],
-      // fifth face
-      [
-        [
-          -0.5,
-          0.5,
-          0.5,
+      [A,D,F,E],
+      [C,B,H,G],
 
-          0.5,
-          0.5,
-          0.5,
+      [D,C,E,H],
+      [B,A,G,F],
 
-          -0.5,
-          0.5,
-          -0.5,
-        ],
-        [
-          0.5,
-          0.5,
-          0.5,
-
-          0.5,
-          0.5,
-         -0.5,
-
-          -0.5,
-          0.5,
-          -0.5,
-        ]
-      ],
-      // sixth face
-      [
-        [
-          -0.5,
-          -0.5,
-          0.5,
-
-          -0.5,
-          -0.5,
-          -0.5,
-
-          0.5,
-          -0.5,
-          0.5,
-        ],
-        [
-          0.5,
-          -0.5,
-          0.5,
-
-          -0.5,
-          -0.5,
-          -0.5,
-
-          0.5,
-          -0.5,
-          -0.5,
-        ]
-      ],
+      [A,B,D,C],
+      [E,H,F,G],
     ].flat(2)
   );
 
@@ -324,35 +143,31 @@ export const startGame2 = () => {
   const NORMAL_Z_AXIS_NEGATIVE = [0,0,-1] as const
   const NORMAL_Z_AXIS_POSITIVE = [0,0,1] as const
 
-  const generateSameThreeNormals = (normal: readonly [x:number, y:number,z:number]) => [normal, normal, normal]
+  const generateSameFourNormals = (normal: readonly [x:number, y:number, z:number]) => [normal, normal, normal, normal]
   
   const normals = new Float32Array(
     [
-      generateSameThreeNormals(NORMAL_Z_AXIS_POSITIVE),
-      generateSameThreeNormals(NORMAL_Z_AXIS_POSITIVE),
-
-      generateSameThreeNormals(NORMAL_Z_AXIS_NEGATIVE),
-      generateSameThreeNormals(NORMAL_Z_AXIS_NEGATIVE),
-
-      generateSameThreeNormals(NORMAL_X_AXIS_POSITIVE),
-      generateSameThreeNormals(NORMAL_X_AXIS_POSITIVE),
-
-      generateSameThreeNormals(NORMAL_X_AXIS_NEGATIVE),
-      generateSameThreeNormals(NORMAL_X_AXIS_NEGATIVE),
-
-      generateSameThreeNormals(NORMAL_Y_AXIS_POSITIVE),
-      generateSameThreeNormals(NORMAL_Y_AXIS_POSITIVE),
-
-      generateSameThreeNormals(NORMAL_Y_AXIS_NEGATIVE),
-      generateSameThreeNormals(NORMAL_Y_AXIS_NEGATIVE),
+      generateSameFourNormals(NORMAL_Z_AXIS_POSITIVE),
+      generateSameFourNormals(NORMAL_Z_AXIS_NEGATIVE),
+      generateSameFourNormals(NORMAL_X_AXIS_POSITIVE),
+      generateSameFourNormals(NORMAL_X_AXIS_NEGATIVE),
+      generateSameFourNormals(NORMAL_Y_AXIS_POSITIVE),
+      generateSameFourNormals(NORMAL_Y_AXIS_NEGATIVE),
     ].flat(2)
   );
 
   const vboData = new Float32Array([...positions, ...normals]);
-
   const vertexBuffer = new Buffer(gl, vboData);
 
-  const vertexCount = positions.length / VECTOR_3_SIZE;
+  const iboBuffer = new Uint16Array(
+    Array.from({length: positions.length / 4}).fill(null).map((_,i) => {
+      const offset = i * 4; // 4 vertices per face
+      return [offset + 0, offset + 1, offset + 2,offset +  2, offset + 1, offset + 3];
+    }).flat(2)
+  );
+  const indexBuffer = new Buffer(gl, iboBuffer, gl.ELEMENT_ARRAY_BUFFER);
+    
+  const vertexCount = iboBuffer.length;
 
   /*
    * Textures
@@ -369,16 +184,17 @@ export const startGame2 = () => {
       name: 'localNormal',
       size: VECTOR_3_SIZE,
       type: gl.FLOAT,
-      offset: vertexCount * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT
+      offset: positions.length * NUM_BYTES_IN_FLOAT
     }
   ])
 
   const pipeline: Pipeline = {
     program,
-    buffer: vertexBuffer,
+    vertexBuffer,
+    vertexArray,
+    indexBuffer,
     texture: null,
     framebuffer: null,
-    vertexArray,
     vertexCount,
     primitiveType: gl.TRIANGLES,
   };
@@ -522,6 +338,6 @@ function renderPipeline(
       pipeline.program.setTextureUniform(pipeline.texture, `tex`, )
     }
 
-    pipeline.vertexArray.render(pipeline.primitiveType, 0, pipeline.vertexCount);
+    pipeline.vertexArray.render(pipeline.primitiveType, 0, pipeline.vertexCount, pipeline.indexBuffer);
   });
 }

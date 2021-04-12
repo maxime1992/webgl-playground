@@ -64,3 +64,4 @@ export function isPowerOf2(value) {
 export const VECTOR_3_SIZE = 3;
 export const VECTOR_2_SIZE = 2;
 export const NUM_BYTES_IN_FLOAT = 4;
+export const NUM_BYTES_IN_UNSIGNED_SHORT = 2;
