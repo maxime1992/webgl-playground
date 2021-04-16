@@ -15,23 +15,14 @@ import { Framebuffer } from './framebuffer';
 import frag from './debug.frag';
 import vert from './debug.vert';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
+import { makeCube } from './primitives/cube';
+import { Mesh } from './primitives/mesh';
 
 interface UserDragInput {
   yawAngle: number;
   pitchAngle: number;
 }
 
-// often called "pipeline" or "render pass"
-interface Pipeline {
-  program: Program;
-  vertexBuffer: Buffer;
-  vertexArray: VertexArray;
-  indexBuffer: Buffer | null;
-  texture: Texture | null;
-  framebuffer: Framebuffer | null;
-  vertexCount: number;
-  primitiveType: GLenum;
-}
 
 const COLORING_POSITIONS = 0;
 const COLORING_NORMALS = 1;
@@ -73,125 +64,13 @@ export const startGame2 = () => {
 
   const program = new Program(gl, vertex, fragment);
 
-  /*
-   * Create vertex buffer
-   */
-
-  //          G                      H
-  //           xxxxxxxxxxxxxxxxxxxxx
-  //         xx                     xxx
-  //       xx      x              xxx x
-  //     xx        x            xxx   x
-  //    xxx        x          xxx     x
-  //   xxx         x        xxx       x
-  //   xxxxxxxxxxxxxxxxxxxxxx         x
-  // F x           x       xE         x
-  //   x           x       x          x
-  //   x        B  x       x         xx  C
-  //   x           xxxxxxxxxxxxxxxxxxxx
-  //   x          xx       x        xx
-  //   x        xxx        x      xx
-  //   x      xxx          x    xxx
-  //   x    xxx            x   xx
-  //   x  xxx              x  xx
-  //   xxxx                xxx
-  //   xxxxxxxxxxxxxxxxxxxxxx
-  // A                      D
-
-  const A = [-0.5, -0.5, +0.5];
-  const B = [-0.5, -0.5, -0.5];
-  const C = [+0.5, -0.5, -0.5];
-  const D = [+0.5, -0.5, +0.5];
-  const E = [+0.5, +0.5, +0.5];
-  const F = [-0.5, +0.5, +0.5];
-  const G = [-0.5, +0.5, -0.5];
-  const H = [+0.5, +0.5, -0.5];
-
-  // TODO: Convert to Mesh class and use an index array.
-  const positions = new Float32Array(
-    [
-      [A, D, F, E],
-      [C, B, H, G],
-
-      [D, C, E, H],
-      [B, A, G, F],
-
-      [A, B, D, C],
-      [E, H, F, G],
-    ].flat(2),
-  );
-
-  const NORMAL_X_AXIS_NEGATIVE = [-1, 0, 0] as const;
-  const NORMAL_X_AXIS_POSITIVE = [1, 0, 0] as const;
-
-  const NORMAL_Y_AXIS_NEGATIVE = [0, -1, 0] as const;
-  const NORMAL_Y_AXIS_POSITIVE = [0, 1, 0] as const;
-
-  const NORMAL_Z_AXIS_NEGATIVE = [0, 0, -1] as const;
-  const NORMAL_Z_AXIS_POSITIVE = [0, 0, 1] as const;
-
-  const generateSameFourNormals = (normal: readonly [x: number, y: number, z: number]) => [
-    normal,
-    normal,
-    normal,
-    normal,
-  ];
-
-  const normals = new Float32Array(
-    [
-      generateSameFourNormals(NORMAL_Z_AXIS_POSITIVE),
-      generateSameFourNormals(NORMAL_Z_AXIS_NEGATIVE),
-      generateSameFourNormals(NORMAL_X_AXIS_POSITIVE),
-      generateSameFourNormals(NORMAL_X_AXIS_NEGATIVE),
-      generateSameFourNormals(NORMAL_Y_AXIS_POSITIVE),
-      generateSameFourNormals(NORMAL_Y_AXIS_NEGATIVE),
-    ].flat(2),
-  );
-
-  const vboData = new Float32Array([...positions, ...normals]);
-  const vertexBuffer = new Buffer(gl, vboData);
-
-  const iboBuffer = new Uint16Array(
-    Array.from({ length: positions.length / 4 })
-      .fill(null)
-      .map((_, i) => {
-        const offset = i * 4; // 4 vertices per face
-        return [offset + 0, offset + 1, offset + 2, offset + 2, offset + 1, offset + 3];
-      })
-      .flat(2),
-  );
-  const indexBuffer = new Buffer(gl, iboBuffer, gl.ELEMENT_ARRAY_BUFFER);
-
-  const vertexCount = iboBuffer.length;
-
-  /*
-   * Textures
-   */
-
-  const vertexArray = new VertexArray(gl, program, vertexBuffer, [
-    {
-      name: 'localPosition',
-      size: VECTOR_3_SIZE,
-      type: gl.FLOAT,
-      offset: 0,
-    },
-    {
-      name: 'localNormal',
-      size: VECTOR_3_SIZE,
-      type: gl.FLOAT,
-      offset: positions.length * NUM_BYTES_IN_FLOAT,
-    },
-  ]);
+  const cubeMesh = makeCube();
 
   const pipeline: Pipeline = {
     program,
-    vertexBuffer,
-    vertexArray,
-    indexBuffer,
     texture: null,
     framebuffer: null,
-    vertexCount,
-    primitiveType: gl.TRIANGLES,
+    geometry: makeGeometryBuffers(cubeMesh)
   };
 
   /*
@@ -278,7 +157,6 @@ function render(
   let transformationMatrix = mat4.create();
 
   let eyePosition = vec3.fromValues(0, 0, orbitDistance);
-
   if (userDragInput) {
     vec3.rotateX(eyePosition, eyePosition, [0, 0, 0], userDragInput.pitchAngle);
     vec3.rotateY(eyePosition, eyePosition, [0, 0, 0], userDragInput.yawAngle);
@@ -336,6 +214,8 @@ function renderPipeline(
       pipeline.program.setTextureUniform(pipeline.texture, `tex`);
     }
 
-    pipeline.vertexArray.render(pipeline.primitiveType, 0, pipeline.vertexCount, pipeline.indexBuffer);
+    pipeline.geometry.forEach(geometry => {
+      geometry.vertexArray.render(geometry.primitiveType, 0, geometry.vertexCount, geometry.indexBuffer);
+    });
   });
 }

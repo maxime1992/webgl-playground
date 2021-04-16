@@ -1,15 +1,25 @@
 import { vec2, vec3 } from 'gl-matrix';
 
+export enum PrimitiveType {
+  POINTS = 'Points',
+  LINES = 'Lines',
+  LINE_STRIP = 'LineStrip',
+  TRIANGLES = 'Triangles',
+  TRIANGLE_STRIP = 'TriangleStrip',
+  TRIANGLE_FAN = 'TriangleFan',
+}
+
 export class Mesh {
   // Vertex data:
-  private positions: vec3[];
-  private normals: vec3[];
-  private textureCoordinates: vec2[];
-  private vertexColors: vec3[];
+  public positions: vec3[];
+  public normals: vec3[];
+  public textureCoordinates: vec2[];
+  public vertexColors: vec3[];
 
   // Vertex order data:
-  private indices: Uint32Array;
+  public indices: Uint32Array;
 
   // Rasterisation <word>
-  private primitiveType: GLenum;
+  public primitiveType: PrimitiveType;
+
 }
