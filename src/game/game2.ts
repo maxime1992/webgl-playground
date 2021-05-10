@@ -212,7 +212,7 @@ function renderPipeline(
     }
 
     pipeline.geometry.forEach((geometry) => {
-      geometry.vertexArray.render(gl.TRIANGLES, 0, geometry.vertexCount, geometry.indexBuffer);
+      geometry.vertexArray.render(geometry.primitiveType, 0, geometry.vertexCount, geometry.indexBuffer);
     });
   });
 }

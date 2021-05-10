@@ -11,14 +11,14 @@ export enum PrimitiveType {
 
 export class Mesh {
   // Vertex data:
-  public positions: vec3[];
-  public normals: vec3[];
-  public textureCoordinates: vec2[];
-  public vertexColors: vec3[];
+  public positions: vec3[] = [];
+  public normals: vec3[] = [];
+  public textureCoordinates: vec2[] = [];
+  public vertexColors: vec3[] = [];
 
   // Vertex order data:
-  public indices: Uint16Array;
+  public indices: number[] = [];
 
   // Rasterisation <word>
-  public primitiveType: PrimitiveType;
+  public primitiveType: PrimitiveType = PrimitiveType.POINTS;
 }

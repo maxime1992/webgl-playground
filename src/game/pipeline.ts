@@ -28,20 +28,25 @@ export class Pipeline {
   ) {}
 
   private meshToGeometryBuffer(gl: WebGLRenderingContext, mesh: Mesh): GeometryBuffer {
-    function toArray(v: vec3): number[] {
+    function Vec3toArray(v: vec3): number[] {
       return [v[0], v[1], v[2]];
     }
 
-    // function toArray(v: vec2): number[] {
-    //   return [v[0], v[1]]
-    // }
+    function Vec2toArray(v: vec2): number[] {
+      return [v[0], v[1]];
+    }
 
-    const tmp = [mesh.positions.map(toArray), mesh.normals.map(toArray)].flat(2);
+    const flattenedFloats = [
+      mesh.positions.map(Vec3toArray),
+      mesh.normals.map(Vec3toArray),
+      mesh.textureCoordinates.map(Vec2toArray),
+      mesh.vertexColors.map(Vec3toArray),
+    ].flat(2);
 
-    const vboData = new Float32Array(tmp);
+    const vboData = new Float32Array(flattenedFloats);
     const vertexBuffer = new Buffer(gl, vboData);
 
-    const indexBuffer = new Buffer(gl, mesh.indices, gl.ELEMENT_ARRAY_BUFFER);
+    const indexBuffer = new Buffer(gl, new Uint16Array(mesh.indices), gl.ELEMENT_ARRAY_BUFFER);
     const vertexCount = mesh.indices.length === 0 ? mesh.positions.length : mesh.indices.length;
 
     const vertexArray = new VertexArray(gl, this.program, vertexBuffer, [
@@ -56,6 +61,23 @@ export class Pipeline {
         size: VECTOR_3_SIZE,
         type: gl.FLOAT,
         offset: mesh.positions.length * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT,
+      },
+      {
+        name: 'textureCoordinates',
+        size: VECTOR_2_SIZE,
+        type: gl.FLOAT,
+        offset:
+          mesh.positions.length * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT +
+          mesh.normals.length * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT,
+      },
+      {
+        name: 'color',
+        size: VECTOR_3_SIZE,
+        type: gl.FLOAT,
+        offset:
+          mesh.positions.length * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT +
+          mesh.normals.length * VECTOR_3_SIZE * NUM_BYTES_IN_FLOAT +
+          mesh.textureCoordinates.length * VECTOR_2_SIZE * NUM_BYTES_IN_FLOAT,
       },
     ]);
 

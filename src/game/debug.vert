@@ -12,9 +12,9 @@ attribute vec3 color;
 /*
  * Uniforms
  */
-uniform mat4 worldFromLocal; 
-uniform mat3 worldFromLocalNormal; 
-uniform mat4 projectionFromWorld; 
+uniform mat4 worldFromLocal;
+uniform mat3 worldFromLocalNormal;
+uniform mat4 projectionFromWorld;
 
 /*
  * Outputs

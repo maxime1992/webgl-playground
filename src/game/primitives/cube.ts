@@ -71,28 +71,28 @@ export function makeCube(): Mesh {
     generateSameFourNormals(NORMAL_Y_AXIS_NEGATIVE),
   ].flat();
 
+  // TODO: add texture coordinates
+  mesh.textureCoordinates = [];
+
   /*
    * Create indices
    */
-
-  mesh.indices = new Uint16Array(
-    Array.from({ length: mesh.positions.length / 4 })
-      .fill(null)
-      .map((_, i) => {
-        const offset = i * 4; // 4 vertices per face
-        return [
-          // triangle 1
-          offset + 0,
-          offset + 1,
-          offset + 2,
-          // triangle 2
-          offset + 2,
-          offset + 1,
-          offset + 3,
-        ];
-      })
-      .flat(2),
-  );
+  mesh.indices = Array.from({ length: mesh.positions.length / 4 })
+    .fill(null)
+    .map((_, i) => {
+      const offset = i * 4; // 4 vertices per face
+      return [
+        // triangle 1
+        offset + 0,
+        offset + 1,
+        offset + 2,
+        // triangle 2
+        offset + 2,
+        offset + 1,
+        offset + 3,
+      ];
+    })
+    .flat(2);
 
   return mesh;
 }
