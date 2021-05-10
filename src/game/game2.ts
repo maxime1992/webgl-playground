@@ -8,6 +8,7 @@ import forestPicture from '../assets/forest-low-quality.jpg';
 import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
+import { Pipeline } from './pipeline';
 import { VertexArray } from './vertex-array';
 import { Texture } from './texture';
 import { Buffer } from './buffer';
@@ -22,7 +23,6 @@ interface UserDragInput {
   yawAngle: number;
   pitchAngle: number;
 }
-
 
 const COLORING_POSITIONS = 0;
 const COLORING_NORMALS = 1;
@@ -66,12 +66,9 @@ export const startGame2 = () => {
 
   const cubeMesh = makeCube();
 
-  const pipeline: Pipeline = {
-    program,
-    texture: null,
-    framebuffer: null,
-    geometry: makeGeometryBuffers(cubeMesh)
-  };
+  const pipeline = new Pipeline(program, null, null, []);
+
+  pipeline.addGeometry(gl, cubeMesh);
 
   /*
    * "Render loop"
@@ -214,8 +211,8 @@ function renderPipeline(
       pipeline.program.setTextureUniform(pipeline.texture, `tex`);
     }
 
-    pipeline.geometry.forEach(geometry => {
-      geometry.vertexArray.render(geometry.primitiveType, 0, geometry.vertexCount, geometry.indexBuffer);
+    pipeline.geometry.forEach((geometry) => {
+      geometry.vertexArray.render(gl.TRIANGLES, 0, geometry.vertexCount, geometry.indexBuffer);
     });
   });
 }

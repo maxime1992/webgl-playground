@@ -17,9 +17,8 @@ export class Mesh {
   public vertexColors: vec3[];
 
   // Vertex order data:
-  public indices: Uint32Array;
+  public indices: Uint16Array;
 
   // Rasterisation <word>
   public primitiveType: PrimitiveType;
-
 }

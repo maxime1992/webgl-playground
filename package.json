@@ -2,7 +2,7 @@
   "name": "webgl-playground",
   "scripts": {
     "parcel": "parcel index.html --hmr-port 9876",
-    "prettier:fix": "yarn run prettier './src/**/*.{js,scss,ts}' --write"
+    "format": "yarn run prettier './src/**/*.{js,scss,ts}' --write"
   },
   "dependencies": {
     "gl-matrix": "3.3.0",
