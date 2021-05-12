@@ -67,43 +67,28 @@ export const startGame2 = () => {
 
   const cubeMesh = makeCube();
 
-  // const spriteSize = vec2.fromValues(24, 44);
-  const spriteWidth = 24;
-  const spriteHeight = 44;
+  const spritePixelSize = 16;
+
+  const textureWidth = 385;
+  const textureHeight = 705;
+
+  function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
+    return [
+      vec2.fromValues(((x + 0) * spritePixelSize + 2) / textureWidth, ((y + 1) * spritePixelSize + 0) / textureHeight),
+      vec2.fromValues(((x + 1) * spritePixelSize + 0) / textureWidth, ((y + 1) * spritePixelSize + 0) / textureHeight),
+      vec2.fromValues(((x + 0) * spritePixelSize + 2) / textureWidth, ((y + 0) * spritePixelSize + 2) / textureHeight),
+      vec2.fromValues(((x + 1) * spritePixelSize + 0) / textureWidth, ((y + 0) * spritePixelSize + 2) / textureHeight),
+    ];
+  }
 
   cubeMesh.textureCoordinates = [
-    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
-
-    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
-
-    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
-
-    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
-
-    // Bottom
-    vec2.fromValues(2 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(2 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
-
-    // Top
-    vec2.fromValues(0 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(1 / spriteWidth, 1 / spriteHeight),
-    vec2.fromValues(0 / spriteWidth, 0 / spriteHeight),
-    vec2.fromValues(1 / spriteWidth, 0 / spriteHeight),
-  ];
+    makeFaceTexCoords(3, 0),
+    makeFaceTexCoords(3, 0),
+    makeFaceTexCoords(3, 0),
+    makeFaceTexCoords(3, 0),
+    makeFaceTexCoords(2, 0),
+    makeFaceTexCoords(0, 0),
+  ].flat();
 
   const texture = new Texture(gl, 1, 1);
 
