@@ -3,6 +3,9 @@ precision highp int;
 
 /*
  * Inputs
+ *
+ * Passed from TS to the VERTEX shader. Read only. The values
+ * may change for each vertex.
  */
 attribute vec3 localPosition;
 attribute vec3 localNormal;
@@ -11,13 +14,22 @@ attribute vec3 color;
 
 /*
  * Uniforms
+ *
+ * Passed from TS to any shader. Read only. The values will NOT change
+ * for each vertex or fragment.
  */
 uniform mat4 worldFromLocal;
 uniform mat3 worldFromLocalNormal;
 uniform mat4 projectionFromWorld;
 
+//////////////////// ^^^ From Typescript ^^^ ////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+//////////////////// vvv   Shader only   vvv ////////////////////////////
+
 /*
  * Outputs
+ *
+ * Shader to shader. Values are interpolated.
  */
 varying vec3 worldPosition;
 varying vec3 worldNormal;
@@ -33,5 +45,6 @@ void main() {
   uv            = textureCoordinates;
   vertexColor   = color;
   
+  // Output in clipspace [-1, 1]
   gl_Position   = projectionFromWorld * vec4(worldPosition, 1);
 }

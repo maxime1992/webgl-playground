@@ -1,5 +1,5 @@
 import { Mesh, PrimitiveType } from './mesh';
-import { vec3 } from 'gl-matrix';
+import { vec2, vec3 } from 'gl-matrix';
 
 export function makeCube(): Mesh {
   const mesh = new Mesh();
@@ -47,8 +47,8 @@ export function makeCube(): Mesh {
     [D, C, E, H],
     [B, A, G, F],
 
-    [A, B, D, C],
-    [E, H, F, G],
+    [B, C, A, D],
+    [F, E, G, H],
   ].flat();
 
   const NORMAL_X_AXIS_NEGATIVE = vec3.fromValues(-1, 0, 0);
@@ -72,14 +72,23 @@ export function makeCube(): Mesh {
   ].flat();
 
   // TODO: add texture coordinates
-  mesh.textureCoordinates = [];
+  // texture space: 0 to 1
+  mesh.textureCoordinates = Array.from({ length: 6 })
+    .fill(null)
+    .flatMap(() => [
+      vec2.fromValues(0, 1),
+      vec2.fromValues(1, 1),
+      vec2.fromValues(0, 0),
+      vec2.fromValues(1, 0),
+      // add more
+    ]);
 
   /*
    * Create indices
    */
   mesh.indices = Array.from({ length: mesh.positions.length / 4 })
     .fill(null)
-    .map((_, i) => {
+    .flatMap((_, i) => {
       const offset = i * 4; // 4 vertices per face
       return [
         // triangle 1
@@ -91,8 +100,7 @@ export function makeCube(): Mesh {
         offset + 1,
         offset + 3,
       ];
-    })
-    .flat(2);
+    });
 
   return mesh;
 }

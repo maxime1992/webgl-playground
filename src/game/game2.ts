@@ -66,7 +66,22 @@ export const startGame2 = () => {
 
   const cubeMesh = makeCube();
 
-  const pipeline = new Pipeline(program, null, null, []);
+  const texture = new Texture(gl, 1, 1);
+
+  const image$ = new Observable((observer) => {
+    const image = new Image();
+
+    image.onload = () => {
+      texture.updateTexture(image);
+
+      observer.next();
+      observer.complete();
+    };
+
+    image.src = forestPicture;
+  });
+
+  const pipeline = new Pipeline(program, texture, null, []);
 
   pipeline.addGeometry(gl, cubeMesh);
 
@@ -109,6 +124,7 @@ export const startGame2 = () => {
   };
 
   combineLatestTopLevel(
+    image$.pipe(mapTo(undefined)),
     windowResize$.pipe(startWith(undefined)),
     userInput$.pipe(
       scan<UserDragInput>(
@@ -134,7 +150,7 @@ export const startGame2 = () => {
     ),
   )
     .pipe(
-      tap(([_, userInput, { orbitDistance }]) => {
+      tap(([_1, _2, userInput, { orbitDistance }]) => {
         render(canvas, gl, pipeline, userInput, orbitDistance);
       }),
     )
@@ -194,7 +210,7 @@ function renderPipeline(
   const worldFromLocal = mat4.create();
   const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
 
-  const coloring = COLORING_NORMALS;
+  const coloring = COLORING_TEXTURE;
   const uniformColor = vec3.fromValues(1.0, 0.85, 0.7);
   const opacity = 1.0;
 
