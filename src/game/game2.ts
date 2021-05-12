@@ -4,7 +4,8 @@
 import { glMatrix, mat4, mat3, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel } from 'rxjs';
 import { map, mapTo, mergeMap, startWith, takeUntil, tap, pairwise, scan, combineLatest } from 'rxjs/operators';
-import forestPicture from '../assets/forest-low-quality.jpg';
+// import forestPicture from '../assets/forest-low-quality.jpg';
+import minecraftSprite from '../assets/minecraft.png';
 import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
@@ -66,6 +67,44 @@ export const startGame2 = () => {
 
   const cubeMesh = makeCube();
 
+  // const spriteSize = vec2.fromValues(24, 44);
+  const spriteWidth = 24;
+  const spriteHeight = 44;
+
+  cubeMesh.textureCoordinates = [
+    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
+
+    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
+
+    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
+
+    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(4 / spriteWidth, 0 / spriteHeight),
+
+    // Bottom
+    vec2.fromValues(2 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(2 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(3 / spriteWidth, 0 / spriteHeight),
+
+    // Top
+    vec2.fromValues(0 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(1 / spriteWidth, 1 / spriteHeight),
+    vec2.fromValues(0 / spriteWidth, 0 / spriteHeight),
+    vec2.fromValues(1 / spriteWidth, 0 / spriteHeight),
+  ];
+
   const texture = new Texture(gl, 1, 1);
 
   const image$ = new Observable((observer) => {
@@ -78,7 +117,7 @@ export const startGame2 = () => {
       observer.complete();
     };
 
-    image.src = forestPicture;
+    image.src = minecraftSprite;
   });
 
   const pipeline = new Pipeline(program, texture, null, []);
