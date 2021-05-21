@@ -93,4 +93,8 @@ export class Pipeline {
   public addGeometry(gl: WebGLRenderingContext, mesh: Mesh): void {
     this.geometry.push(this.meshToGeometryBuffer(gl, mesh));
   }
+
+  public clearGeometry(): void {
+    this.geometry = [];
+  }
 }

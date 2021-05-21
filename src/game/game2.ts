@@ -2,23 +2,19 @@
 // fragment: run 1 time per pixel
 
 import { glMatrix, mat4, mat3, vec2, vec3 } from 'gl-matrix';
-import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel } from 'rxjs';
+import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel, from } from 'rxjs';
 import { map, mapTo, mergeMap, startWith, takeUntil, tap, pairwise, scan, combineLatest } from 'rxjs/operators';
 // import forestPicture from '../assets/forest-low-quality.jpg';
 import minecraftSprite from '../assets/minecraft.png';
-import filterFrag from './edge-filter.frag';
 import { Program } from './program';
 import { Shader } from './shader';
 import { Pipeline } from './pipeline';
-import { VertexArray } from './vertex-array';
 import { Texture } from './texture';
-import { Buffer } from './buffer';
-import { Framebuffer } from './framebuffer';
 import frag from './debug.frag';
 import vert from './debug.vert';
-import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 import { makeCube } from './primitives/cube';
 import { Mesh } from './primitives/mesh';
+import { Shape } from './shapes.enum';
 
 interface UserDragInput {
   yawAngle: number;
@@ -32,6 +28,22 @@ const COLORING_VERTEX_COLORS = 3;
 const COLORING_UNIFORM_COLOR = 4;
 const COLORING_TEXTURE = 5;
 const COLORING_WHITE = 6;
+
+let coloring = COLORING_NORMALS;
+
+function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
+  const spritePixelSize = 16;
+
+  const textureWidth = 385;
+  const textureHeight = 705;
+
+  return [
+    vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
+    vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
+    vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
+    vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
+  ];
+}
 
 export const startGame2 = () => {
   /*
@@ -65,30 +77,16 @@ export const startGame2 = () => {
 
   const program = new Program(gl, vertex, fragment);
 
-  const cubeMesh = makeCube();
+  const chooseShape = document.getElementById('choose-shape') as HTMLSelectElement | null;
 
-  const spritePixelSize = 16;
-
-  const textureWidth = 385;
-  const textureHeight = 705;
-
-  function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
-    return [
-      vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
-      vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
-      vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
-      vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
-    ];
+  if (!chooseShape) {
+    throw new Error(`Missing element to choose the shape`);
   }
 
-  cubeMesh.textureCoordinates = [
-    makeFaceTexCoords(8, 0),
-    makeFaceTexCoords(8, 0),
-    makeFaceTexCoords(8, 0),
-    makeFaceTexCoords(8, 0),
-    makeFaceTexCoords(10, 0), // bottom
-    makeFaceTexCoords(9, 0), // top
-  ].flat();
+  const chooseShape$: Observable<Shape> = fromEvent(chooseShape, 'change').pipe(
+    startWith(null),
+    map((x) => (chooseShape.options[chooseShape.selectedIndex].value as unknown) as Shape),
+  );
 
   const texture = new Texture(gl, 1, 1);
 
@@ -107,7 +105,51 @@ export const startGame2 = () => {
 
   const pipeline = new Pipeline(program, texture, null, []);
 
-  pipeline.addGeometry(gl, cubeMesh);
+  const updateShape$ = chooseShape$.pipe(
+    tap((shape) => {
+      pipeline.clearGeometry();
+
+      switch (shape) {
+        case Shape.CUBE: {
+          const cubeMesh = makeCube();
+          pipeline.addGeometry(gl, cubeMesh);
+
+          coloring = COLORING_NORMALS;
+          break;
+        }
+        case Shape.MINECRAFT: {
+          const cubeMesh = makeCube();
+
+          cubeMesh.textureCoordinates = [
+            makeFaceTexCoords(8, 0),
+            makeFaceTexCoords(8, 0),
+            makeFaceTexCoords(8, 0),
+            makeFaceTexCoords(8, 0),
+            makeFaceTexCoords(10, 0), // bottom
+            makeFaceTexCoords(9, 0), // top
+          ].flat();
+
+          pipeline.addGeometry(gl, cubeMesh);
+
+          coloring = COLORING_TEXTURE;
+          break;
+        }
+        case Shape.PLANE: {
+          break;
+        }
+        case Shape.SPHERE: {
+          break;
+        }
+        case Shape.WAVEY: {
+          break;
+        }
+
+        default:
+          let a: never = shape;
+          throw new Error(`${a} is not a recognized shape`);
+      }
+    }),
+  );
 
   /*
    * "Render loop"
@@ -148,6 +190,7 @@ export const startGame2 = () => {
   };
 
   combineLatestTopLevel(
+    updateShape$,
     image$.pipe(mapTo(undefined)),
     windowResize$.pipe(startWith(undefined)),
     userInput$.pipe(
@@ -174,7 +217,7 @@ export const startGame2 = () => {
     ),
   )
     .pipe(
-      tap(([_1, _2, userInput, { orbitDistance }]) => {
+      tap(([_1, _2, _3, userInput, { orbitDistance }]) => {
         render(canvas, gl, pipeline, userInput, orbitDistance);
       }),
     )
@@ -234,7 +277,6 @@ function renderPipeline(
   const worldFromLocal = mat4.create();
   const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
 
-  const coloring = COLORING_TEXTURE;
   const uniformColor = vec3.fromValues(1.0, 0.85, 0.7);
   const opacity = 1.0;
 

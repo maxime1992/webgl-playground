@@ -1,6 +1,8 @@
 import { startGame } from './game/game';
 import { startGame2 } from './game/game2';
 
+export { Shape } from './game/shapes.enum';
+
 declare const module;
 
 // avoid hot reload with Parcel
