@@ -4,8 +4,8 @@ precision highp int;
 /*
  * Inputs
  *
- * Passed from TS to the VERTEX shader. Read only. The values
- * may change for each vertex.
+ * Passed from TS to the VERTEX shader. Read only.
+ * The values may change for each vertex.
  */
 attribute vec3 localPosition;
 attribute vec3 localNormal;
@@ -15,8 +15,8 @@ attribute vec3 color;
 /*
  * Uniforms
  *
- * Passed from TS to any shader. Read only. The values will NOT change
- * for each vertex or fragment.
+ * Passed from TS to any shader. Read only. The values 
+ * will NOT change for each vertex or fragment.
  */
 uniform mat4 worldFromLocal;
 uniform mat3 worldFromLocalNormal;
@@ -27,7 +27,7 @@ uniform mat4 projectionFromWorld;
 //////////////////// vvv   Shader only   vvv ////////////////////////////
 
 /*
- * Outputs
+ * Varying Outputs (to fragment shader)
  *
  * Shader to shader. Values are interpolated.
  */

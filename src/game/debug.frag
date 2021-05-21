@@ -1,6 +1,9 @@
 precision highp float;
 precision highp int;
 
+/*
+ * Constant variables specific to this shader.
+ */
 const int COLORING_POSITIONS           = 0;
 const int COLORING_NORMALS             = 1;
 const int COLORING_TEXTURE_COORDINATES = 2;
@@ -10,20 +13,31 @@ const int COLORING_TEXTURE             = 5;
 const int COLORING_WHITE               = 6;
 
 /*
- * Inputs
+ * Varying Inputs (from vertex shader)
+ *
+ * Shader to shader. Values are interpolated.
  */
 varying vec3 worldPosition;
 varying vec3 worldNormal;
 varying vec2 uv;
 varying vec3 vertexColor;
 
+/////////////////////////////////////////////////////////////////////////
+//////////////////// vvv From Typescript vvv ////////////////////////////
+
 /*
  * Uniforms
+ *
+ * Passed from TS to any shader. Read only. The values 
+ * will NOT change for each vertex or fragment.
  */
 uniform int       coloring;
 uniform vec3      uniformColor;
 uniform float     opacity;
 uniform sampler2D tex;
+
+//////////////////// ^^^ From Typescript ^^^ ////////////////////////////
+/////////////////////////////////////////////////////////////////////////
 
 /*
  * Set the output color based on the value of `coloring`.

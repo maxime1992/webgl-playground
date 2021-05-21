@@ -40,7 +40,7 @@ export class Texture {
     this.unbind();
   }
 
-  public updateTexture(image: HTMLImageElement): void {
+  public updateTexture(image: HTMLImageElement, filterType: GLenum = this.gl.LINEAR): void {
     // https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Using_textures_in_WebGL
 
     this.gl.bindTexture(this.textureType, this.getTextureId());
@@ -49,20 +49,15 @@ export class Texture {
     // WebGL1 has different requirements for power of 2 images
     // vs non power of 2 images so check if the image is a
     // power of 2 in both dimensions.
-    if (isPowerOf2(image.width) && isPowerOf2(image.height)) {
+    if (filterType != this.gl.NEAREST && isPowerOf2(image.width) && isPowerOf2(image.height)) {
       // Yes, it's a power of 2. Generate mips.
       this.gl.generateMipmap(this.textureType);
     } else {
-      // No, it's not a power of 2. Turn off mips and set
-      // wrapping to clamp to edge
+      // No, it's not a power of 2. Turn off mips and set wrapping to clamp to edge
       this.gl.texParameteri(this.textureType, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE);
       this.gl.texParameteri(this.textureType, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
-      this.gl.texParameteri(
-        this.textureType,
-        this.gl.TEXTURE_MIN_FILTER,
-        // other option `gl.NEAREST`
-        this.gl.LINEAR,
-      );
+      this.gl.texParameteri(this.textureType, this.gl.TEXTURE_MIN_FILTER, filterType);
+      this.gl.texParameteri(this.textureType, this.gl.TEXTURE_MAG_FILTER, filterType);
     }
 
     this.gl.bindTexture(this.textureType, null);

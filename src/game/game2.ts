@@ -74,20 +74,20 @@ export const startGame2 = () => {
 
   function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
     return [
-      vec2.fromValues(((x + 0) * spritePixelSize + 2) / textureWidth, ((y + 1) * spritePixelSize + 0) / textureHeight),
-      vec2.fromValues(((x + 1) * spritePixelSize + 0) / textureWidth, ((y + 1) * spritePixelSize + 0) / textureHeight),
-      vec2.fromValues(((x + 0) * spritePixelSize + 2) / textureWidth, ((y + 0) * spritePixelSize + 2) / textureHeight),
-      vec2.fromValues(((x + 1) * spritePixelSize + 0) / textureWidth, ((y + 0) * spritePixelSize + 2) / textureHeight),
+      vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
+      vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 1) * spritePixelSize + 1) / textureHeight),
+      vec2.fromValues(((x + 0) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
+      vec2.fromValues(((x + 1) * spritePixelSize + 1) / textureWidth, ((y + 0) * spritePixelSize + 1) / textureHeight),
     ];
   }
 
   cubeMesh.textureCoordinates = [
-    makeFaceTexCoords(3, 0),
-    makeFaceTexCoords(3, 0),
-    makeFaceTexCoords(3, 0),
-    makeFaceTexCoords(3, 0),
-    makeFaceTexCoords(2, 0),
-    makeFaceTexCoords(0, 0),
+    makeFaceTexCoords(8, 0),
+    makeFaceTexCoords(8, 0),
+    makeFaceTexCoords(8, 0),
+    makeFaceTexCoords(8, 0),
+    makeFaceTexCoords(10, 0), // bottom
+    makeFaceTexCoords(9, 0), // top
   ].flat();
 
   const texture = new Texture(gl, 1, 1);
@@ -96,7 +96,7 @@ export const startGame2 = () => {
     const image = new Image();
 
     image.onload = () => {
-      texture.updateTexture(image);
+      texture.updateTexture(image, gl.NEAREST);
 
       observer.next();
       observer.complete();
