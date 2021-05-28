@@ -67,8 +67,8 @@ export function makeCube(): Mesh {
     generateSameFourNormals(NORMAL_Z_AXIS_NEGATIVE),
     generateSameFourNormals(NORMAL_X_AXIS_POSITIVE),
     generateSameFourNormals(NORMAL_X_AXIS_NEGATIVE),
-    generateSameFourNormals(NORMAL_Y_AXIS_POSITIVE),
     generateSameFourNormals(NORMAL_Y_AXIS_NEGATIVE),
+    generateSameFourNormals(NORMAL_Y_AXIS_POSITIVE),
   ].flat();
 
   // TODO: add texture coordinates

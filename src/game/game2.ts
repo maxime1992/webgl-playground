@@ -13,6 +13,7 @@ import { Texture } from './texture';
 import frag from './debug.frag';
 import vert from './debug.vert';
 import { makeCube } from './primitives/cube';
+import { makePlane } from './primitives/plane';
 import { Mesh } from './primitives/mesh';
 import { Shape } from './shapes.enum';
 
@@ -111,16 +112,16 @@ export const startGame2 = () => {
 
       switch (shape) {
         case Shape.CUBE: {
-          const cubeMesh = makeCube();
-          pipeline.addGeometry(gl, cubeMesh);
+          const mesh = makeCube();
+          pipeline.addGeometry(gl, mesh);
 
           coloring = COLORING_NORMALS;
           break;
         }
         case Shape.MINECRAFT: {
-          const cubeMesh = makeCube();
+          const mesh = makeCube();
 
-          cubeMesh.textureCoordinates = [
+          mesh.textureCoordinates = [
             makeFaceTexCoords(8, 0),
             makeFaceTexCoords(8, 0),
             makeFaceTexCoords(8, 0),
@@ -129,12 +130,16 @@ export const startGame2 = () => {
             makeFaceTexCoords(9, 0), // top
           ].flat();
 
-          pipeline.addGeometry(gl, cubeMesh);
+          pipeline.addGeometry(gl, mesh);
 
           coloring = COLORING_TEXTURE;
           break;
         }
         case Shape.PLANE: {
+          const mesh = makePlane(10, 10);
+          pipeline.addGeometry(gl, mesh);
+
+          coloring = COLORING_TEXTURE_COORDINATES;
           break;
         }
         case Shape.SPHERE: {

@@ -9,6 +9,19 @@ export enum PrimitiveType {
   TRIANGLE_FAN = 'TriangleFan',
 }
 
+export function toGlType(gl: WebGLRenderingContext, primitiveType: PrimitiveType): GLenum {
+  const PRIMITIVE_TYPE_TO_GL_TYPE: Record<PrimitiveType, GLenum> = {
+    [PrimitiveType.POINTS]: gl.POINTS,
+    [PrimitiveType.LINES]: gl.LINES,
+    [PrimitiveType.LINE_STRIP]: gl.LINE_STRIP,
+    [PrimitiveType.TRIANGLES]: gl.TRIANGLES,
+    [PrimitiveType.TRIANGLE_STRIP]: gl.TRIANGLE_STRIP,
+    [PrimitiveType.TRIANGLE_FAN]: gl.TRIANGLE_FAN,
+  };
+
+  return PRIMITIVE_TYPE_TO_GL_TYPE[primitiveType];
+}
+
 export class Mesh {
   // Vertex data:
   public positions: vec3[] = [];

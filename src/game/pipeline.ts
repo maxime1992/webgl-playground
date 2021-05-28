@@ -3,7 +3,7 @@ import { Texture } from './texture';
 import { Buffer } from './buffer';
 import { VertexArray } from './vertex-array';
 import { Framebuffer } from './framebuffer';
-import { Mesh } from './primitives/mesh';
+import { Mesh, toGlType } from './primitives/mesh';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 import { vec2, vec3 } from 'gl-matrix';
 
@@ -46,7 +46,8 @@ export class Pipeline {
     const vboData = new Float32Array(flattenedFloats);
     const vertexBuffer = new Buffer(gl, vboData);
 
-    const indexBuffer = new Buffer(gl, new Uint16Array(mesh.indices), gl.ELEMENT_ARRAY_BUFFER);
+    const indexBuffer =
+      mesh.indices.length === 0 ? null : new Buffer(gl, new Uint16Array(mesh.indices), gl.ELEMENT_ARRAY_BUFFER);
     const vertexCount = mesh.indices.length === 0 ? mesh.positions.length : mesh.indices.length;
 
     const vertexArray = new VertexArray(gl, this.program, vertexBuffer, [
@@ -86,7 +87,7 @@ export class Pipeline {
       vertexArray,
       indexBuffer,
       vertexCount,
-      primitiveType: gl.TRIANGLES, // TODO: convert from mesh.primitiveType
+      primitiveType: toGlType(gl, mesh.primitiveType),
     };
   }
 
