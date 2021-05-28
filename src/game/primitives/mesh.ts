@@ -34,4 +34,13 @@ export class Mesh {
 
   // Rasterisation <word>
   public primitiveType: PrimitiveType = PrimitiveType.POINTS;
+
+  public createNormalsMesh(): Mesh {
+    const normalsMesh = new Mesh();
+    this.positions.forEach((position, index) =>
+      normalsMesh.positions.push(position, vec3.add(vec3.create(), position, this.normals[index])),
+    );
+    normalsMesh.primitiveType = PrimitiveType.LINES;
+    return normalsMesh;
+  }
 }

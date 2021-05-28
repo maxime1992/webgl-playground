@@ -22,20 +22,33 @@
         touch-action: none;
       }
 
-      select{
+      .settings{
         position: absolute;
+      }
+
+      .show-normals {
+        color: white
       }
     </style>
   </head>
 
   <body>
-    <select id="choose-shape">
-      <option value="cube">Cube</option>
-      <option value="minecraft">Minecraft Block</option>
-      <option value="sphere">Sphere</option>
-      <option value="plane" selected>Plane</option>
-      <option value="wavey">Wavy Plane</option>
-    </select>
+    <div class="settings">
+      <form id="settings">
+        <select>
+          <option value="cube">Cube</option>
+          <option value="minecraft">Minecraft Block</option>
+          <option value="sphere">Sphere</option>
+          <option value="plane" selected>Plane</option>
+          <option value="wavey">Wavy Plane</option>
+        </select>
+
+        <span class="show-normals">
+          Show normals <input type="checkbox" id="show-normals">
+        </span>
+      </form>
+    </div>
+    
     <canvas id="renderCanvas"></canvas>
   </body>
 </html>

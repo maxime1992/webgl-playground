@@ -16,6 +16,7 @@ import { makeCube } from './primitives/cube';
 import { makePlane } from './primitives/plane';
 import { Mesh } from './primitives/mesh';
 import { Shape } from './shapes.enum';
+import { Settings } from './settings';
 
 interface UserDragInput {
   yawAngle: number;
@@ -78,15 +79,41 @@ export const startGame2 = () => {
 
   const program = new Program(gl, vertex, fragment);
 
-  const chooseShape = document.getElementById('choose-shape') as HTMLSelectElement | null;
+  const settings = document.getElementById('settings') as HTMLFormElement | null;
 
-  if (!chooseShape) {
-    throw new Error(`Missing element to choose the shape`);
+  if (!settings) {
+    throw new Error(`Missing form element for the settings`);
   }
 
-  const chooseShape$: Observable<Shape> = fromEvent(chooseShape, 'change').pipe(
+  const settings$: Observable<Settings> = fromEvent(settings, 'change').pipe(
     startWith(null),
-    map((x) => (chooseShape.options[chooseShape.selectedIndex].value as unknown) as Shape),
+    map((x) => {
+    
+      console.log(settings)
+
+      settings.elements.reduce((acc, e) => {
+        acc[]
+        
+        return acc
+      }, {})
+
+
+      for ( let i = 0; i < settings.elements.length; i++ ) {
+        let e = settings.elements[i];
+        if (e.nodeName === "INPUT") {
+
+        }    
+        
+        if (e.nodeName === "SELECT") {
+
+        }
+        console.log(e.nodeName)
+     }
+      return {
+        // shape:   (settings..options[settings.selectedIndex].value as unknown) as Shape,
+        // showNormals:boolean;
+      }
+    }),
   );
 
   const texture = new Texture(gl, 1, 1);
@@ -106,20 +133,22 @@ export const startGame2 = () => {
 
   const pipeline = new Pipeline(program, texture, null, []);
 
-  const updateShape$ = chooseShape$.pipe(
-    tap((shape) => {
+  const updateShape$ = settings$.pipe(
+    tap((settings) => {
       pipeline.clearGeometry();
 
-      switch (shape) {
+      let mesh: Mesh | null = null;
+
+      switch (settings.shape) {
         case Shape.CUBE: {
-          const mesh = makeCube();
+          mesh = makeCube();
           pipeline.addGeometry(gl, mesh);
 
           coloring = COLORING_NORMALS;
           break;
         }
         case Shape.MINECRAFT: {
-          const mesh = makeCube();
+          mesh = makeCube();
 
           mesh.textureCoordinates = [
             makeFaceTexCoords(8, 0),
@@ -136,7 +165,7 @@ export const startGame2 = () => {
           break;
         }
         case Shape.PLANE: {
-          const mesh = makePlane(10, 10);
+          mesh = makePlane(10, 10);
           pipeline.addGeometry(gl, mesh);
 
           coloring = COLORING_TEXTURE_COORDINATES;
@@ -150,8 +179,12 @@ export const startGame2 = () => {
         }
 
         default:
-          let a: never = shape;
+          let a: never = settings.shape;
           throw new Error(`${a} is not a recognized shape`);
+      }
+
+      if (mesh && settings.showNormals) {
+        pipeline.addGeometry(gl, mesh.createNormalsMesh());
       }
     }),
   );
