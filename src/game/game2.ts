@@ -85,36 +85,79 @@ export const startGame2 = () => {
     throw new Error(`Missing form element for the settings`);
   }
 
-  const settings$: Observable<Settings> = fromEvent(settings, 'change').pipe(
+  const shape = document.getElementById('shape') as HTMLSelectElement | null;
+  const showNormals = document.getElementById('show-normals') as HTMLInputElement | null;
+
+  if (!shape) {
+    throw new Error(`Missing shape for the settings`);
+  }
+
+  if (!showNormals) {
+    throw new Error(`Missing showNormals for the settings`);
+  }
+
+  const shape$ = fromEvent(shape, 'change').pipe(
     startWith(null),
-    map((x) => {
-    
-      console.log(settings)
-
-      settings.elements.reduce((acc, e) => {
-        acc[]
-        
-        return acc
-      }, {})
-
-
-      for ( let i = 0; i < settings.elements.length; i++ ) {
-        let e = settings.elements[i];
-        if (e.nodeName === "INPUT") {
-
-        }    
-        
-        if (e.nodeName === "SELECT") {
-
-        }
-        console.log(e.nodeName)
-     }
-      return {
-        // shape:   (settings..options[settings.selectedIndex].value as unknown) as Shape,
-        // showNormals:boolean;
-      }
-    }),
+    map(() => shape.value as Shape),
+    tap((x) => console.log('shape value', x)),
   );
+
+  const showNormals$ = fromEvent(showNormals, 'change').pipe(
+    startWith(null),
+    map(() => showNormals.checked),
+    tap((x) => console.log('showNormals value', x)),
+  );
+
+  const settings$ = merge(
+    shape$.pipe(map((shape) => ({ shape }))),
+    showNormals$.pipe(map((showNormals) => ({ showNormals }))),
+  ).pipe(
+    scan(
+      (acc, current) => ({
+        ...acc,
+        ...current,
+      }),
+      {
+        shape: shape.value as Shap,
+        showNormals: showNormals.checked,
+      },
+    ),
+  );
+
+  // const settings$: Observable<Settings> = fromEvent(settings, 'change').pipe(
+  //   startWith(null),
+  //   map((x) => {
+
+  //     console.log(settings)
+
+  //     // settings.elements.reduce((acc, e) => {
+  //     //   acc[]
+
+  //     //   return acc
+  //     // }, {})
+
+  //     for ( let i = 0; i < settings.elements.length; i++ ) {
+  //       let e = settings.elements[i];
+  //       if (e.nodeName === "INPUT") {
+  //         console.log(e.nodeValue);
+
+  //       }
+
+  //       if (e.nodeName === "SELECT") {
+
+  //         console.log((e as any).value);
+
+  //       }
+  //       console.log(e.nodeName)
+  //    }
+  //     return {
+  //       shape: Shape.CUBE,
+  //       showNormals:false
+  //       // shape:   (settings..options[settings.selectedIndex].value as unknown) as Shape,
+  //       // showNormals:boolean;
+  //     } as any
+  //   }),
+  // );
 
   const texture = new Texture(gl, 1, 1);
 
