@@ -2,8 +2,20 @@
 // fragment: run 1 time per pixel
 
 import { glMatrix, mat4, mat3, vec2, vec3 } from 'gl-matrix';
-import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel, from } from 'rxjs';
-import { map, mapTo, mergeMap, startWith, takeUntil, tap, pairwise, scan, combineLatest } from 'rxjs/operators';
+import { fromEvent, merge, Observable, pipe, combineLatest as combineLatestTopLevel, from, interval, of } from 'rxjs';
+import {
+  map,
+  mapTo,
+  mergeMap,
+  startWith,
+  takeUntil,
+  tap,
+  pairwise,
+  scan,
+  combineLatest,
+  timestamp,
+  switchMap,
+} from 'rxjs/operators';
 // import forestPicture from '../assets/forest-low-quality.jpg';
 import minecraftSprite from '../assets/minecraft.png';
 import { Program } from './program';
@@ -12,6 +24,7 @@ import { Pipeline } from './pipeline';
 import { Texture } from './texture';
 import frag from './debug.frag';
 import vert from './debug.vert';
+import wavy from './wavy.vert';
 import { makeCube } from './primitives/cube';
 import { makePlane } from './primitives/plane';
 import { Mesh } from './primitives/mesh';
@@ -99,13 +112,11 @@ export const startGame2 = () => {
   const shape$ = fromEvent(shape, 'change').pipe(
     startWith(null),
     map(() => shape.value as Shape),
-    tap((x) => console.log('shape value', x)),
   );
 
   const showNormals$ = fromEvent(showNormals, 'change').pipe(
     startWith(null),
     map(() => showNormals.checked),
-    tap((x) => console.log('showNormals value', x)),
   );
 
   const settings$ = merge(
@@ -118,7 +129,7 @@ export const startGame2 = () => {
         ...current,
       }),
       {
-        shape: shape.value as Shap,
+        shape: shape.value as Shape,
         showNormals: showNormals.checked,
       },
     ),
@@ -127,8 +138,6 @@ export const startGame2 = () => {
   // const settings$: Observable<Settings> = fromEvent(settings, 'change').pipe(
   //   startWith(null),
   //   map((x) => {
-
-  //     console.log(settings)
 
   //     // settings.elements.reduce((acc, e) => {
   //     //   acc[]
@@ -174,7 +183,7 @@ export const startGame2 = () => {
     image.src = minecraftSprite;
   });
 
-  const pipeline = new Pipeline(program, texture, null, []);
+  let pipeline = new Pipeline(program, texture, null, []);
 
   const updateShape$ = settings$.pipe(
     tap((settings) => {
@@ -217,7 +226,16 @@ export const startGame2 = () => {
         case Shape.SPHERE: {
           break;
         }
-        case Shape.WAVEY: {
+        case Shape.WAVY: {
+          const wavyVertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: wavy });
+
+          const wavyProgram = new Program(gl, wavyVertex, fragment);
+
+          pipeline = new Pipeline(wavyProgram, texture, null, []);
+          mesh = makePlane(100, 100);
+          pipeline.addGeometry(gl, mesh);
+
+          coloring = COLORING_POSITIONS;
           break;
         }
 
@@ -296,10 +314,20 @@ export const startGame2 = () => {
       ),
       startWith({ orbitDistance: 5 }),
     ),
+    of(null).pipe(
+      timestamp(),
+      map(({ timestamp }) => timestamp),
+      switchMap((timeProgramStartedMs) =>
+        interval(16).pipe(
+          timestamp(),
+          map(({ timestamp }) => (timestamp - timeProgramStartedMs) / 1000),
+        ),
+      ),
+    ),
   )
     .pipe(
-      tap(([_1, _2, _3, userInput, { orbitDistance }]) => {
-        render(canvas, gl, pipeline, userInput, orbitDistance);
+      tap(([_1, _2, _3, userInput, { orbitDistance }, timeInSeconds]) => {
+        render(canvas, gl, pipeline, userInput, orbitDistance, timeInSeconds);
       }),
     )
     .subscribe();
@@ -311,6 +339,7 @@ function render(
   pipeline: Pipeline,
   userDragInput: UserDragInput,
   orbitDistance: number,
+  timeInSeconds: number,
 ) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
@@ -346,14 +375,14 @@ function render(
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  renderPipeline(gl, pipeline, transformationMatrix);
+  renderPipeline(gl, pipeline, transformationMatrix, timeInSeconds);
 }
 
 function renderPipeline(
   gl: WebGLRenderingContext,
   pipeline: Pipeline,
   projectionFromWorld: mat4,
-  screenSize: vec2 | null = null,
+  timeInSeconds: number,
 ) {
   const worldFromLocal = mat4.create();
   const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
@@ -369,6 +398,7 @@ function renderPipeline(
     pipeline.program.setIntUniform(coloring, `coloring`);
     pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
     pipeline.program.setFloatUniform(opacity, `opacity`);
+    pipeline.program.setFloatUniform(timeInSeconds, `timeInSeconds`);
 
     if (pipeline.texture) {
       pipeline.program.setTextureUniform(pipeline.texture, `tex`);

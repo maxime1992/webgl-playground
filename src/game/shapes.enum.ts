@@ -3,5 +3,5 @@ export enum Shape {
   MINECRAFT = 'minecraft',
   SPHERE = 'sphere',
   PLANE = 'plane',
-  WAVEY = 'wavey',
+  WAVY = 'wavy',
 }
