@@ -225,7 +225,7 @@ export const startGame2 = () => {
           break;
         }
         case Shape.SPHERE: {
-          mesh = makeSphere();
+          mesh = makeSphere(30, 30);
           pipeline.addGeometry(gl, mesh);
 
           coloring = COLORING_NORMALS;
