@@ -26,6 +26,7 @@ import frag from './debug.frag';
 import vert from './debug.vert';
 import wavy from './wavy.vert';
 import { makeCube } from './primitives/cube';
+import { makeSphere } from './primitives/sphere';
 import { makePlane } from './primitives/plane';
 import { Mesh } from './primitives/mesh';
 import { Shape } from './shapes.enum';
@@ -224,14 +225,18 @@ export const startGame2 = () => {
           break;
         }
         case Shape.SPHERE: {
+          mesh = makeSphere();
+          pipeline.addGeometry(gl, mesh);
+
+          coloring = COLORING_NORMALS;
           break;
         }
         case Shape.WAVY: {
-          const wavyVertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: wavy });
+          // const wavyVertex = new Shader(gl, { type: gl.VERTEX_SHADER, source: wavy });
+          // const wavyProgram = new Program(gl, wavyVertex, fragment);
 
-          const wavyProgram = new Program(gl, wavyVertex, fragment);
+          // pipeline = new Pipeline(wavyProgram, texture, null, []);
 
-          pipeline = new Pipeline(wavyProgram, texture, null, []);
           mesh = makePlane(100, 100);
           pipeline.addGeometry(gl, mesh);
 
@@ -398,7 +403,7 @@ function renderPipeline(
     pipeline.program.setIntUniform(coloring, `coloring`);
     pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
     pipeline.program.setFloatUniform(opacity, `opacity`);
-    pipeline.program.setFloatUniform(timeInSeconds, `timeInSeconds`);
+    // pipeline.program.setFloatUniform(timeInSeconds, `timeInSeconds`);
 
     if (pipeline.texture) {
       pipeline.program.setTextureUniform(pipeline.texture, `tex`);
