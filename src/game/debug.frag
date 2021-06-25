@@ -12,6 +12,11 @@ const int COLORING_UNIFORM_COLOR       = 4;
 const int COLORING_TEXTURE             = 5;
 const int COLORING_WHITE               = 6;
 
+const int SHADING_NONE                 = 0;
+const int SHADING_LAMBERTIAN           = 1;
+
+const vec3 DIRECTIONAL_LIGHT            = -vec3(3, 5, 2);
+
 /*
  * Varying Inputs (from vertex shader)
  *
@@ -35,6 +40,7 @@ uniform int       coloring;
 uniform vec3      uniformColor;
 uniform float     opacity;
 uniform sampler2D tex;
+uniform int       shading;
 
 //////////////////// ^^^ From Typescript ^^^ ////////////////////////////
 /////////////////////////////////////////////////////////////////////////
@@ -43,35 +49,45 @@ uniform sampler2D tex;
  * Set the output color based on the value of `coloring`.
  */
 void main() {
-  vec3 shapeColor = vec3(1.0, 1.0, 1.0);
+  vec3 surfaceColor = vec3(1.0, 1.0, 1.0);
 
   /*
    * Coloring
    */
   if (coloring == COLORING_POSITIONS) {
-    shapeColor = worldPosition;
+    surfaceColor = worldPosition;
 
   } else if (coloring == COLORING_NORMALS) {
-    shapeColor = worldNormal * 0.5 + 0.5;// between 0 and 1
+    surfaceColor = worldNormal * 0.5 + 0.5;// between 0 and 1
 
   } else if (coloring == COLORING_TEXTURE_COORDINATES) {
-    shapeColor = vec3(uv, 1.0);
+    surfaceColor = vec3(uv, 1.0);
 
   } else if (coloring == COLORING_VERTEX_COLORS) {
-    shapeColor = vertexColor;
+    surfaceColor = vertexColor;
 
   } else if (coloring == COLORING_UNIFORM_COLOR) {
-    shapeColor = uniformColor;
+    surfaceColor = uniformColor;
 
   } else if (coloring == COLORING_TEXTURE) {
-    shapeColor = texture2D(tex, uv).rgb;
+    surfaceColor = texture2D(tex, uv).rgb;
 
   } else { // coloring == COLORING_WHITE
   }
+  
+  float intensity = 0.0;
+  
+  if (shading == SHADING_NONE) {
+    intensity = 1.0;
+
+  } else if (shading == SHADING_LAMBERTIAN) {
+    intensity += 0.15; // ambient
+    intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
+  }
 
   // if (!gl_FrontFacing) {
-  //   shapeColor *= 0.3;
+  //   surfaceColor *= 0.3;
   // }
 
-  gl_FragColor = vec4(shapeColor, opacity);
+  gl_FragColor = vec4(surfaceColor * intensity, opacity);
 }

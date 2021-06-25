@@ -45,7 +45,11 @@ const COLORING_UNIFORM_COLOR = 4;
 const COLORING_TEXTURE = 5;
 const COLORING_WHITE = 6;
 
+const SHADING_NONE = 0;
+const SHADING_LAMBERTIAN = 1;
+
 let coloring = COLORING_NORMALS;
+let shading = SHADING_LAMBERTIAN;
 
 function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
   const spritePixelSize = 16;
@@ -228,7 +232,7 @@ export const startGame2 = () => {
           mesh = makeSphere(30, 30);
           pipeline.addGeometry(gl, mesh);
 
-          coloring = COLORING_NORMALS;
+          coloring = COLORING_UNIFORM_COLOR;
           break;
         }
         case Shape.WAVY: {
@@ -400,6 +404,7 @@ function renderPipeline(
     pipeline.program.setMatrixUniform(worldFromLocalNormal, `worldFromLocalNormal`);
     pipeline.program.setMatrixUniform(projectionFromWorld, `projectionFromWorld`);
 
+    pipeline.program.setIntUniform(shading, `shading`);
     pipeline.program.setIntUniform(coloring, `coloring`);
     pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
     pipeline.program.setFloatUniform(opacity, `opacity`);
