@@ -50,6 +50,7 @@ const SHADING_LAMBERTIAN = 1;
 
 let coloring = COLORING_NORMALS;
 let shading = SHADING_LAMBERTIAN;
+// let shading = SHADING_NONE;
 
 function makeFaceTexCoords(x: number, y: number): [vec2, vec2, vec2, vec2] {
   const spritePixelSize = 16;

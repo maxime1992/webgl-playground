@@ -85,6 +85,8 @@ void main() {
     intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
   }
 
+  intensity = clamp(intensity, 0.0, 1.0);
+
   // if (!gl_FrontFacing) {
   //   surfaceColor *= 0.3;
   // }
