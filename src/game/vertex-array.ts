@@ -52,7 +52,7 @@ export class VertexArray {
     });
   }
 
-  public render(primitiveType: GLenum, start: number, vertexCount: number, indexBuffer: Buffer | null) {
+  public render(primitiveType: GLenum, start: number, vertexCount: number, indexBuffer: Buffer | null = null) {
     this.buffer.scopeBind(() => {
       this.prepareForRender();
 

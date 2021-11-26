@@ -1,5 +1,6 @@
 import { startGame } from './game/game';
 import { startGame2 } from './game/game2';
+import { startGame3 } from './game/game3';
 
 export { Shape } from './game/shapes.enum';
 
@@ -15,5 +16,6 @@ if (module.hot) {
 
 window.addEventListener('DOMContentLoaded', () => {
   // startGame();
-  startGame2();
+  // startGame2();
+  startGame3();
 });
