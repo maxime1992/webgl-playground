@@ -17,6 +17,35 @@ import vert from './shader.vert';
 import lineVert from './line.vert';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 
+function is_zero(x: number): boolean {
+  const EQN_EPS = 1e-16;
+  return x > -EQN_EPS && x < EQN_EPS;
+}
+
+/// \brief Solves an equation of the form ax^2 + bx + c = 0
+function solve_quadratic(a: number, b: number, c: number): number[] {
+  let p: number;
+  let q: number;
+  let D: number;
+
+  /* normal form: x^2 + px + q = 0 */
+
+  p = b / (2 * a);
+  q = c / a;
+
+  D = p * p - q;
+
+  if (is_zero(D)) {
+    return [-p];
+  } else if (D < 0) {
+    return [];
+  } else {
+    /* if (D > 0) */
+    const sqrt_D = Math.sqrt(D);
+    return [sqrt_D - p, -sqrt_D - p];
+  }
+}
+
 interface UserInput {
   initialMouseClipSpace: vec2;
   currentMouseClipSpace: vec2;
@@ -40,6 +69,8 @@ interface Pipeline {
 // will do later on
 // function renderPassToFrameBuffer(pipeline: Pipeline):void {
 // }
+
+const circleRadius = 2;
 
 export const startGame3 = () => {
   /*
@@ -79,8 +110,8 @@ export const startGame3 = () => {
   for (let i = 0; i <= precision; i += 1) {
     const a = angle * i;
 
-    topPositionsData.push(Math.cos(a));
-    topPositionsData.push(Math.sin(a));
+    topPositionsData.push(Math.cos(a) * circleRadius);
+    topPositionsData.push(Math.sin(a) * circleRadius);
     topPositionsData.push(0);
   }
 
@@ -250,7 +281,7 @@ function render(
 
   const aspectRatio = canvas.width / canvas.height;
 
-  const height = 4.0;
+  const height = 6.0;
   const width = aspectRatio * height;
 
   const halfWidth = width * 0.5;
@@ -259,7 +290,7 @@ function render(
   const projectionMatrix = mat4.ortho(mat4.create(), -halfWidth, +halfWidth, -halfHeight, +halfHeight, 0.1, 100.0);
   mat4.multiply(transformationMatrix, projectionMatrix, transformationMatrix);
 
-  renderPipeline(gl, pipeline, transformationMatrix, vec3.fromValues(0, 0, 1));
+  renderPipeline(gl, pipeline, transformationMatrix, vec3.fromValues(0, 0, 1), gl.LINE_STRIP);
 
   if (userInput) {
     const initialWorldPos = vec2.mul(
@@ -273,13 +304,51 @@ function render(
       vec2.fromValues(halfWidth, halfHeight),
     );
 
+    // Draw line
     renderPipeline(
       gl,
       linePipeline,
       transformationMatrix,
       vec3.fromValues(0, 1, 0),
+      gl.LINE_STRIP,
       mat2.fromValues(initialWorldPos[0], initialWorldPos[1], currentWorldPos[0], currentWorldPos[1]),
     );
+
+    // Compute intersection between the line and the circle
+    interface Ray {
+      origin: vec2;
+      direction: vec2;
+    }
+
+    const ray: Ray = {
+      origin: initialWorldPos,
+      direction: vec2.normalize(vec2.create(), vec2.subtract(vec2.create(), currentWorldPos, initialWorldPos)),
+    };
+
+    const computeIntersections = (): vec2[] => {
+      const a = vec2.dot(ray.direction, ray.direction);
+      const b = 2 * vec2.dot(ray.origin, ray.direction);
+      const c = vec2.dot(ray.origin, ray.origin) - circleRadius * circleRadius;
+      const ts: number[] = solve_quadratic(a, b, c);
+
+      return ts.map((t: number) => {
+        return vec2.scaleAndAdd(vec2.create(), ray.origin, ray.direction, t);
+      });
+    };
+
+    const intersectionPoints: vec2[] = computeIntersections();
+
+    if (intersectionPoints.length) {
+      // Display the intersection point
+      const points = mat2.fromValues(
+        intersectionPoints[0][0],
+        intersectionPoints[0][1],
+        intersectionPoints[1]?.[0] ?? intersectionPoints[0][0],
+        intersectionPoints[1]?.[1] ?? intersectionPoints[0][0],
+      );
+
+      renderPipeline(gl, linePipeline, transformationMatrix, vec3.fromValues(1, 0, 1), gl.POINTS, points);
+    }
   }
 }
 
@@ -288,6 +357,7 @@ function renderPipeline(
   pipeline: Pipeline,
   transformationMatrix: mat4,
   color: vec3,
+  primitiveType: GLenum,
   positions: mat2 | null = null,
 ) {
   pipeline.program.use(() => {
@@ -299,6 +369,6 @@ function renderPipeline(
 
     pipeline.program.setFloatUniform(color, `color`);
 
-    pipeline.vertexArray.render(gl.LINE_STRIP, 0, pipeline.vertexCount);
+    pipeline.vertexArray.render(primitiveType, 0, pipeline.vertexCount);
   });
 }
