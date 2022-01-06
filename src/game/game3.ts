@@ -318,22 +318,42 @@ function render(
     interface Ray {
       origin: vec2;
       direction: vec2;
+      tmin: number;
+      tmax: number;
     }
+
+    const unnormalizedDirection = vec2.subtract(vec2.create(), currentWorldPos, initialWorldPos);
 
     const ray: Ray = {
       origin: initialWorldPos,
-      direction: vec2.normalize(vec2.create(), vec2.subtract(vec2.create(), currentWorldPos, initialWorldPos)),
+      direction: vec2.normalize(vec2.create(), unnormalizedDirection),
+      tmin: 0,
+      tmax: vec2.length(unnormalizedDirection),
     };
 
+    // Circle:
+    // p.x^2 + p.y^2 = r^2
+    //
+    // Point from ray:
+    // r.o + r.d * t = p
+    //
+    // Substitute (r.o + r.d * t) for p
+    // in (p.x^2 + p.y^2 = r^2) and rearrange
+    // to get:
+    //
+    // 0 = t^2 * r.d * r.d
+    //     + t * 2 * r.o * r.d
+    //     + r.o * r.o - r^2
+    //
     const computeIntersections = (): vec2[] => {
       const a = vec2.dot(ray.direction, ray.direction);
       const b = 2 * vec2.dot(ray.origin, ray.direction);
       const c = vec2.dot(ray.origin, ray.origin) - circleRadius * circleRadius;
       const ts: number[] = solve_quadratic(a, b, c);
 
-      return ts.map((t: number) => {
-        return vec2.scaleAndAdd(vec2.create(), ray.origin, ray.direction, t);
-      });
+      return ts
+        .filter((t) => ray.tmin <= t && t <= ray.tmax)
+        .map((t: number) => vec2.scaleAndAdd(vec2.create(), ray.origin, ray.direction, t));
     };
 
     const intersectionPoints: vec2[] = computeIntersections();
@@ -344,7 +364,7 @@ function render(
         intersectionPoints[0][0],
         intersectionPoints[0][1],
         intersectionPoints[1]?.[0] ?? intersectionPoints[0][0],
-        intersectionPoints[1]?.[1] ?? intersectionPoints[0][0],
+        intersectionPoints[1]?.[1] ?? intersectionPoints[0][1],
       );
 
       renderPipeline(gl, linePipeline, transformationMatrix, vec3.fromValues(1, 0, 1), gl.POINTS, points);
