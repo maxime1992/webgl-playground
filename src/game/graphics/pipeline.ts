@@ -3,11 +3,11 @@ import { Texture } from './texture';
 import { Buffer } from './buffer';
 import { VertexArray } from './vertex-array';
 import { Framebuffer } from './framebuffer';
-import { Mesh, toGlType } from './primitives/mesh';
+import { Mesh, toGlType } from '../primitives/mesh';
 import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
 import { vec2, vec3 } from 'gl-matrix';
 
-interface GeometryBuffer {
+export interface GeometryBuffer {
   vertexBuffer: Buffer;
   vertexArray: VertexArray;
   indexBuffer: Buffer | null;

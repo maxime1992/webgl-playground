@@ -5,16 +5,16 @@ import { glMatrix, mat4, vec2, vec3 } from 'gl-matrix';
 import { fromEvent, merge, Observable } from 'rxjs';
 import { map, mapTo, mergeMap, startWith, takeUntil, tap } from 'rxjs/operators';
 import forestPicture from '../assets/forest-low-quality.jpg';
-import filterFrag from './edge-filter.frag';
-import { Program } from './program';
-import { Shader } from './shader';
-import { VertexArray } from './vertex-array';
-import { Texture } from './texture';
-import { Buffer } from './buffer';
-import { Framebuffer } from './framebuffer';
-import frag from './shader.frag';
-import vert from './shader.vert';
-import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './utils';
+import filterFrag from './shaders/edge-filter.frag';
+import { Program } from './graphics/program';
+import { Shader } from './graphics/shader';
+import { VertexArray } from './graphics/vertex-array';
+import { Texture } from './graphics/texture';
+import { Buffer } from './graphics/buffer';
+import { Framebuffer } from './graphics/framebuffer';
+import frag from './shaders/shader.frag';
+import vert from './shaders/shader.vert';
+import { NUM_BYTES_IN_FLOAT, VECTOR_2_SIZE, VECTOR_3_SIZE } from './graphics/utils';
 
 interface UserInput {
   initialMouseClipSpace: vec2;
