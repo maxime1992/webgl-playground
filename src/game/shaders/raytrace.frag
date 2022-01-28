@@ -31,6 +31,10 @@ uniform vec3      uniformColor;
 uniform sampler2D tex;
 uniform int       shading;
 
+// Camera variables
+uniform mat3 cameraBasis;
+uniform vec3 eyePosition;
+
 uniform vec2 viewportSize; // (w, h)
 
 //////////////////// ^^^ From Typescript ^^^ ////////////////////////////
@@ -45,7 +49,15 @@ void main() {
   vec2 normalizedScreenPos = screenPos / viewportSize; // (0, 0) => (1, 1)
   vec2 clipPos = normalizedScreenPos * 2.0 - 1.0;// (-1, -1) => (1, 1)
 
-  vec3 surfaceColor = vec3(clipPos, 0.0);
+  vec3 right = cameraBasis[0];
+  vec3 up    = cameraBasis[1];
+  vec3 look  = cameraBasis[2];
+
+  // Create the ray from the camera vectors
+  vec3 rayOrigin    = eyePosition;
+  vec3 rayDirection = normalize((clipPos.x * right) + (clipPos.y * up) + look);
+
+  vec3 surfaceColor = vec3(rayDirection);
 
   // /*
   //  * Coloring

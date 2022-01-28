@@ -183,13 +183,36 @@ function render(
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
-  let transformationMatrix = mat4.create();
+  // Field of View Y (angle between top and bottom planes of camera)
+  const fovY = glMatrix.toRadian(60.0);
+  // Aspect ratio
+  const aspect = canvas.width / canvas.height;
 
-  // let eyePosition = vec3.fromValues(0, 0, orbitDistance);
-  // if (userDragInput) {
-  //   vec3.rotateX(eyePosition, eyePosition, [0, 0, 0], userDragInput.pitchAngle);
-  //   vec3.rotateY(eyePosition, eyePosition, [0, 0, 0], userDragInput.yawAngle);
-  // }
+  // cw / ch = hw / hh
+  // (cw / ch) * hh = hw
+  // aspect * hh = hw;
+
+  // soh cah toa
+  // sine    = opposite / hypotenuse
+  // cosine  = adjacent / hypotenuse
+  // tangent = opposite / adjacent
+
+  const halfHeight = Math.tan(fovY * 0.5) * orbitDistance;
+  const halfWidth = aspect * halfHeight;
+
+  let right = vec3.fromValues(halfWidth, 0, 0) as [number, number, number];
+  let up = vec3.fromValues(0, halfHeight, 0) as [number, number, number];
+  let look = vec3.fromValues(0, 0, -orbitDistance) as [number, number, number];
+
+  let eyePosition = vec3.fromValues(0, 0, orbitDistance);
+  if (userDragInput) {
+    [eyePosition, right, up, look].forEach((direction) => {
+      vec3.rotateX(direction, direction, [0, 0, 0], userDragInput.pitchAngle);
+      vec3.rotateY(direction, direction, [0, 0, 0], userDragInput.yawAngle);
+    });
+  }
+
+  const cameraBasis = mat3.fromValues(...right, ...up, ...look);
 
   // const viewMatrix = mat4.lookAt(
   //   mat4.create(),
@@ -214,10 +237,16 @@ function render(
   gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-  renderPipeline(gl, pipeline, transformationMatrix, vec2.fromValues(canvas.clientWidth, canvas.clientHeight));
+  renderPipeline(gl, pipeline, eyePosition, cameraBasis, vec2.fromValues(canvas.clientWidth, canvas.clientHeight));
 }
 
-function renderPipeline(gl: WebGLRenderingContext, pipeline: Pipeline, projectionFromWorld: mat4, viewportSize: vec2) {
+function renderPipeline(
+  gl: WebGLRenderingContext,
+  pipeline: Pipeline,
+  eyePosition: vec3,
+  cameraBasis: mat3,
+  viewportSize: vec2,
+) {
   // const worldFromLocal = mat4.create();
   // const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
 
@@ -226,7 +255,8 @@ function renderPipeline(gl: WebGLRenderingContext, pipeline: Pipeline, projectio
 
   pipeline.program.use(() => {
     pipeline.program.setFloatUniform(viewportSize, `viewportSize`);
-    // pipeline.program.setMatrixUniform(worldFromLocal, `worldFromLocal`);
+    pipeline.program.setMatrixUniform(cameraBasis, `cameraBasis`);
+    pipeline.program.setFloatUniform(eyePosition, `eyePosition`);
     // pipeline.program.setMatrixUniform(worldFromLocalNormal, `worldFromLocalNormal`);
     // pipeline.program.setMatrixUniform(projectionFromWorld, `projectionFromWorld`);
 
