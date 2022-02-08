@@ -1,6 +1,13 @@
 precision highp float;
 precision highp int;
 
+
+/*
+ * Constants
+ */
+const float INF = 10000.0;
+const float PI  = 3.14159265359;
+
 /*
  * Constant variables specific to this shader.
  */
@@ -40,6 +47,64 @@ uniform vec2 viewportSize; // (w, h)
 //////////////////// ^^^ From Typescript ^^^ ////////////////////////////
 /////////////////////////////////////////////////////////////////////////
 
+
+
+bool isZero(in float x) {
+  const float EQN_EPS = 1e-16;
+  return x > -EQN_EPS && x < EQN_EPS;
+}
+
+/// brief Solves an equation of the form ax^2 + bx + c = 0
+vec2 solveQuadratic(in float a, in float b, in float c) {
+  float p;
+  float q;
+  float D;
+
+  /* normal form: x^2 + px + q = 0 */
+
+  p = b / (2.0 * a);
+  q = c / a;
+
+  D = p * p - q;
+
+  if (isZero(D)) {
+    return vec2(-p, INF);
+  } else if (D < 0.0) {
+    return vec2(INF, INF);
+  } else {
+    /* if (D > 0) */
+    float sqrt_D = sqrt(D);
+    return vec2(sqrt_D - p, -sqrt_D - p);
+  }
+}
+
+const float circleRadius = 1.0;
+
+// Circle:
+// p.x^2 + p.y^2 = r^2
+//
+// Point from ray:
+// r.o + r.d * t = p
+//
+// Substitute (r.o + r.d * t) for p
+// in (p.x^2 + p.y^2 = r^2) and rearrange
+// to get:
+//
+// 0 = t^2 * r.d * r.d
+//     + t * 2 * r.o * r.d
+//     + r.o * r.o - r^2
+//
+float computeIntersections(in vec3 origin, in vec3 direction) {
+  float a = dot(direction, direction);
+  float b = 2.0 * dot(origin, direction);
+  float c = dot(origin, origin) - circleRadius * circleRadius;
+  
+  vec2 ts = solveQuadratic(a, b, c);
+
+  return min(ts.x, ts.y);
+}
+
+
 /*
  * Set the output color based on the value of `coloring`.
  */
@@ -57,47 +122,68 @@ void main() {
   vec3 rayOrigin    = eyePosition;
   vec3 rayDirection = normalize((clipPos.x * right) + (clipPos.y * up) + look);
 
-  vec3 surfaceColor = vec3(rayDirection);
+  float distance = computeIntersections(rayOrigin, rayDirection);
 
-  // /*
-  //  * Coloring
-  //  */
-  // if (coloring == COLORING_POSITIONS) {
-  //   surfaceColor = worldPosition;
+  vec3 color = vec3(rayDirection * 0.5 + 0.5);
 
-  // } else if (coloring == COLORING_NORMALS) {
-  //   surfaceColor = worldNormal * 0.5 + 0.5;// between 0 and 1
+  if (0.0 < distance && distance < INF) {
+    vec3 worldPosition = rayOrigin + rayDirection * distance; // r.o + r.d * t;
+    vec3 worldNormal = normalize(worldPosition);
 
-  // } else if (coloring == COLORING_TEXTURE_COORDINATES) {
-  //   surfaceColor = vec3(uv, 1.0);
+    // float air_index = 1.0;
+    // float water_index = 1.333;
 
-  // } else if (coloring == COLORING_VERTEX_COLORS) {
-  //   surfaceColor = vertexColor;
+    // vec3 reflectiveDir = reflect(rayDirection, worldNormal);
+    // vec3 refractiveDir = refract(rayDirection, worldNormal, air_index / water_index);
 
-  // } else if (coloring == COLORING_UNIFORM_COLOR) {
-  //   surfaceColor = uniformColor;
+    // vec3 reflectiveColor = computeIntersections(worldPosition, refelctiveDir);
+    // vec3 refractiveColor = computeIntersections(worldPosition, refractiveDir);
 
-  // } else if (coloring == COLORING_TEXTURE) {
-  //   surfaceColor = texture2D(tex, uv).rgb;
+    // // Fresnel equation
+    // vec3 actualColor = mix(reflectiveColor, refractiveColor, F);
 
-  // } else { // coloring == COLORING_WHITE
-  // }
-  
-  float intensity = 1.0;
-  
-  // if (shading == SHADING_NONE) {
-  //   intensity = 1.0;
+    /*
+     * Coloring
+     */
+    if (coloring == COLORING_POSITIONS) {
+      color = worldPosition;
 
-  // } else if (shading == SHADING_LAMBERTIAN) {
-  //   intensity += 0.15; // ambient
-  //   intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
-  // }
+    } else if (coloring == COLORING_NORMALS) {
+      color = worldNormal * 0.5 + 0.5;// between 0 and 1
 
-  // intensity = clamp(intensity, 0.0, 1.0);
+    } else if (coloring == COLORING_TEXTURE_COORDINATES) {
+      // color = vec3(uv, 1.0);
 
-  // if (!gl_FrontFacing) {
-  //   surfaceColor *= 0.3;
-  // }
+    } else if (coloring == COLORING_VERTEX_COLORS) {
+      // color = vertexColor;
 
-  gl_FragColor = vec4(surfaceColor * intensity, 1.0);
+    } else if (coloring == COLORING_UNIFORM_COLOR) {
+      color = uniformColor;
+
+    } else if (coloring == COLORING_TEXTURE) {
+      // color = texture2D(tex, uv).rgb;
+
+    } else { // coloring == COLORING_WHITE
+    }
+    
+    float intensity = 0.0;
+
+    if (shading == SHADING_NONE) {
+      intensity = 1.0;
+
+    } else if (shading == SHADING_LAMBERTIAN) {
+      intensity += 0.15; // ambient
+      intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
+    }
+
+    intensity = clamp(intensity, 0.0, 1.0);
+
+    if (!gl_FrontFacing) {
+      color *= 0.3;
+    }
+
+    color *= intensity;
+  }
+
+  gl_FragColor = vec4(color, 1.0);
 }

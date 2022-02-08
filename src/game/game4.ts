@@ -43,9 +43,8 @@ const COLORING_WHITE = 6;
 const SHADING_NONE = 0;
 const SHADING_LAMBERTIAN = 1;
 
-let coloring = COLORING_NORMALS;
+let coloring = COLORING_UNIFORM_COLOR;
 let shading = SHADING_LAMBERTIAN;
-// let shading = SHADING_NONE;
 
 export const startGame4 = () => {
   /*
@@ -250,7 +249,7 @@ function renderPipeline(
   // const worldFromLocal = mat4.create();
   // const worldFromLocalNormal = mat3.normalFromMat4(mat3.create(), worldFromLocal);
 
-  // const uniformColor = vec3.fromValues(1.0, 0.85, 0.7);
+  const uniformColor = vec3.fromValues(1.0, 0.85, 0.7);
   // const opacity = 1.0;
 
   pipeline.program.use(() => {
@@ -260,9 +259,9 @@ function renderPipeline(
     // pipeline.program.setMatrixUniform(worldFromLocalNormal, `worldFromLocalNormal`);
     // pipeline.program.setMatrixUniform(projectionFromWorld, `projectionFromWorld`);
 
-    // pipeline.program.setIntUniform(shading, `shading`);
-    // pipeline.program.setIntUniform(coloring, `coloring`);
-    // pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
+    pipeline.program.setIntUniform(shading, `shading`);
+    pipeline.program.setIntUniform(coloring, `coloring`);
+    pipeline.program.setFloatUniform(uniformColor, `uniformColor`);
     // pipeline.program.setFloatUniform(opacity, `opacity`);
 
     if (pipeline.texture) {
