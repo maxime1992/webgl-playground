@@ -172,15 +172,10 @@ void main() {
       intensity = 1.0;
 
     } else if (shading == SHADING_LAMBERTIAN) {
-      intensity += 0.15; // ambient
       intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
     }
 
     intensity = clamp(intensity, 0.0, 1.0);
-
-    if (!gl_FrontFacing) {
-      color *= 0.3;
-    }
 
     color *= intensity;
   }
