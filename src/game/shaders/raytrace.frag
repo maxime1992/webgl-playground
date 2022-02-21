@@ -104,44 +104,19 @@ float computeIntersections(in vec3 origin, in vec3 direction) {
   return min(ts.x, ts.y);
 }
 
+vec4 getWorldColorAndDistance(in vec3 origin, in vec3 direction) {
 
-/*
- * Set the output color based on the value of `coloring`.
- */
-void main() {
+  float distance_along_ray = computeIntersections(origin, direction);
 
-  vec2 screenPos = gl_FragCoord.xy; // (0.5, 0.5) => ((w-1).5, (h-1).5)
-  vec2 normalizedScreenPos = screenPos / viewportSize; // (0, 0) => (1, 1)
-  vec2 clipPos = normalizedScreenPos * 2.0 - 1.0;// (-1, -1) => (1, 1)
+  vec3 color = vec3(direction * 0.5 + 0.5);
 
-  vec3 right = cameraBasis[0];
-  vec3 up    = cameraBasis[1];
-  vec3 look  = cameraBasis[2];
+  // u = atan2(n.x, n.z) / (2*pi) + 0.5;
+  // v = n.y * 0.5 + 0.5;
 
-  // Create the ray from the camera vectors
-  vec3 rayOrigin    = eyePosition;
-  vec3 rayDirection = normalize((clipPos.x * right) + (clipPos.y * up) + look);
-
-  float distance = computeIntersections(rayOrigin, rayDirection);
-
-  vec3 color = vec3(rayDirection * 0.5 + 0.5);
-
-  if (0.0 < distance && distance < INF) {
-    vec3 worldPosition = rayOrigin + rayDirection * distance; // r.o + r.d * t;
+  if (0.0 < distance_along_ray && distance_along_ray < INF) {
+    vec3 worldPosition = origin + direction * distance_along_ray; // r.o + r.d * t;
     vec3 worldNormal = normalize(worldPosition);
-
-    // float air_index = 1.0;
-    // float water_index = 1.333;
-
-    // vec3 reflectiveDir = reflect(rayDirection, worldNormal);
-    // vec3 refractiveDir = refract(rayDirection, worldNormal, air_index / water_index);
-
-    // vec3 reflectiveColor = computeIntersections(worldPosition, refelctiveDir);
-    // vec3 refractiveColor = computeIntersections(worldPosition, refractiveDir);
-
-    // // Fresnel equation
-    // vec3 actualColor = mix(reflectiveColor, refractiveColor, F);
-
+    
     /*
      * Coloring
      */
@@ -172,17 +147,63 @@ void main() {
       intensity = 1.0;
 
     } else if (shading == SHADING_LAMBERTIAN) {
-      intensity += 0.15; // ambient
       intensity += max(0.0, dot(worldNormal, -normalize(DIRECTIONAL_LIGHT)));
     }
 
     intensity = clamp(intensity, 0.0, 1.0);
 
-    if (!gl_FrontFacing) {
-      color *= 0.3;
-    }
-
     color *= intensity;
+  }
+
+  return vec4(color, distance_along_ray);
+}
+
+float fresnelApprox(in float n1, in float n2, in vec3 normal, in vec3 dir) {
+  float R0 = (n1 - n2) / (n1 + n2);
+  R0 *= R0;
+  return R0 + (1.0 - R0) * pow(dot(normal, dir), 5.0);
+}
+
+
+/*
+ * Set the output color based on the value of `coloring`.
+ */
+void main() {
+
+  vec2 screenPos = gl_FragCoord.xy; // (0.5, 0.5) => ((w-1).5, (h-1).5)
+  vec2 normalizedScreenPos = screenPos / viewportSize; // (0, 0) => (1, 1)
+  vec2 clipPos = normalizedScreenPos * 2.0 - 1.0;// (-1, -1) => (1, 1)
+
+  vec3 right = cameraBasis[0];
+  vec3 up    = cameraBasis[1];
+  vec3 look  = cameraBasis[2];
+
+  // Create the ray from the camera vectors
+  vec3 rayOrigin    = eyePosition;
+  vec3 rayDirection = normalize((clipPos.x * right) + (clipPos.y * up) + look);
+
+  vec4 color_and_distance = getWorldColorAndDistance(rayOrigin, rayDirection);
+
+  vec3  color              = color_and_distance.rgb;
+  float distance_along_ray = color_and_distance.w;
+
+  if (0.0 < distance_along_ray && distance_along_ray < INF) {
+    vec3 worldPosition = rayOrigin + rayDirection * distance_along_ray; // r.o + r.d * t;
+    vec3 worldNormal   = normalize(worldPosition);
+
+    const float bumpEps     = 1.0e-4;
+    const float air_index   = 1.0;
+    const float water_index = 1.333;
+
+    vec3 reflectiveDir = reflect(rayDirection, worldNormal);
+    vec3 refractiveDir = refract(rayDirection, worldNormal, air_index / water_index);
+
+    vec3 reflectiveColor = getWorldColorAndDistance(worldPosition + worldNormal * bumpEps, reflectiveDir).rgb;
+    vec3 refractiveColor = getWorldColorAndDistance(worldPosition - worldNormal * bumpEps, refractiveDir).rgb;
+
+    // Fresnel equation
+    float F = fresnelApprox(air_index, water_index, worldNormal, -rayDirection);
+    color   = mix(reflectiveColor, refractiveColor, F);
   }
 
   gl_FragColor = vec4(color, 1.0);
